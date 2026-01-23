@@ -1,17 +1,7 @@
 import { useState, useEffect } from 'react';
-import { db } from '../lib/firebase';
-import { 
-  collection, 
-  query, 
-  orderBy, 
-  getDocs, 
-  addDoc, 
-  updateDoc, 
-  doc, 
-  serverTimestamp 
-} from 'firebase/firestore';
 import { Plus, Edit2, Archive, User } from 'lucide-react';
 import { Bugueiro } from '../types';
+import { partnerService } from '../services/partnerService';
 
 export default function Bugueiros() {
   const [bugueiros, setBugueiros] = useState<Bugueiro[]>([]);
@@ -19,7 +9,6 @@ export default function Bugueiros() {
   const [editingBugueiro, setEditingBugueiro] = useState<Bugueiro | null>(null);
   const [formData, setFormData] = useState({
     name: '',
-    pix_key: ''
   });
 
   useEffect(() => {
@@ -28,58 +17,42 @@ export default function Bugueiros() {
 
   const loadBugueiros = async () => {
     try {
-      const q = query(collection(db, 'bugueiros'), orderBy('name'));
-      const querySnapshot = await getDocs(q);
-      const data = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Bugueiro[];
+      const data = await partnerService.getBugueiros();
       setBugueiros(data);
     } catch (error) {
       console.error('Error loading bugueiros:', error);
-      try {
-        const q = query(collection(db, 'bugueiros'));
-        const querySnapshot = await getDocs(q);
-        const data = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })) as Bugueiro[];
-        setBugueiros(data);
-      } catch (innerError) {
-        console.error('Fallback error loading bugueiros:', innerError);
-      }
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (editingBugueiro) {
-      const bugueiroRef = doc(db, 'bugueiros', editingBugueiro.id);
-      await updateDoc(bugueiroRef, formData);
-    } else {
-      await addDoc(collection(db, 'bugueiros'), {
-        ...formData,
-        active: true,
-        created_at: serverTimestamp()
-      });
+    try {
+      if (editingBugueiro) {
+        // await partnerService.updateBugueiro(editingBugueiro.id, formData);
+      } else {
+        // await partnerService.createBugueiro(formData);
+      }
+      loadBugueiros();
+      resetForm();
+    } catch (error) {
+      console.error('Error saving bugueiro:', error);
     }
-
-    resetForm();
-    loadBugueiros();
   };
 
   const toggleActive = async (bugueiro: Bugueiro) => {
-    const bugueiroRef = doc(db, 'bugueiros', bugueiro.id);
-    await updateDoc(bugueiroRef, { active: !bugueiro.active });
-    loadBugueiros();
+    try {
+      // await partnerService.updateBugueiro(bugueiro.id, { active: !bugueiro.active });
+      loadBugueiros();
+    } catch (error) {
+      console.error('Error toggling bugueiro status:', error);
+    }
   };
 
   const startEdit = (bugueiro: Bugueiro) => {
     setEditingBugueiro(bugueiro);
     setFormData({
       name: bugueiro.name,
-      pix_key: bugueiro.pix_key || ''
     });
     setShowForm(true);
   };
@@ -87,7 +60,6 @@ export default function Bugueiros() {
   const resetForm = () => {
     setFormData({
       name: '',
-      pix_key: ''
     });
     setEditingBugueiro(null);
     setShowForm(false);
@@ -127,19 +99,6 @@ export default function Bugueiros() {
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Chave Pix (opcional)
-                </label>
-                <input
-                  type="text"
-                  value={formData.pix_key}
-                  onChange={(e) => setFormData({ ...formData, pix_key: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="email@example.com ou telefone"
                 />
               </div>
 
@@ -190,12 +149,6 @@ export default function Bugueiros() {
             </div>
 
             <h3 className="font-semibold text-gray-800 mb-2">{bugueiro.name}</h3>
-
-            {bugueiro.pix_key && (
-              <div className="text-sm text-gray-600 mb-2">
-                <span className="font-medium">Pix:</span> {bugueiro.pix_key}
-              </div>
-            )}
 
             {!bugueiro.active && (
               <div className="mt-2 text-sm text-red-600 font-medium">

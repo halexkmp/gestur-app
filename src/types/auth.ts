@@ -1,11 +1,14 @@
-export type UserRole = 'admin' | 'operator';
+export type UserRole = 'ADMIN' | 'OPERATOR';
 
 export interface Profile {
   id: string;
-  email: string;
-  password?: string;
-  full_name: string;
+  username: string;
+  name: string;
   role: UserRole;
-  active: boolean;
-  created_at: any;
+  created_at: string;
+}
+
+export interface TokenResponse {
+  access_token: string;
+  token_type: string;
 }

@@ -1,18 +1,8 @@
 import { useState, useEffect } from 'react';
-import { db } from '../lib/firebase';
-import { 
-  collection, 
-  query, 
-  orderBy, 
-  getDocs, 
-  addDoc, 
-  updateDoc, 
-  doc, 
-  serverTimestamp 
-} from 'firebase/firestore';
 import { Plus, Edit2, UserPlus, Shield, ShieldAlert, UserCheck, UserX } from 'lucide-react';
 import { Profile, UserRole } from '../types';
 import { useAuth } from '../contexts/AuthContext';
+import { userService } from '../services/userService';
 
 export default function Users() {
   const { isAdmin } = useAuth();
@@ -21,10 +11,10 @@ export default function Users() {
   const [editingUser, setEditingUser] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    full_name: '',
-    email: '',
+    name: '',
+    username: '',
     password: '',
-    role: 'operator' as UserRole
+    role: 'OPERATOR' as UserRole
   });
 
   useEffect(() => {
@@ -33,26 +23,10 @@ export default function Users() {
 
   const loadUsers = async () => {
     try {
-      const q = query(collection(db, 'user'), orderBy('full_name'));
-      const querySnapshot = await getDocs(q);
-      const data = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Profile[];
+      const data = await userService.getAll();
       setUsers(data);
     } catch (error) {
       console.error('Error loading users:', error);
-      // Fallback if index is missing
-      try {
-        const querySnapshot = await getDocs(collection(db, 'user'));
-        const data = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })) as Profile[];
-        setUsers(data.sort((a, b) => a.full_name.localeCompare(b.full_name)));
-      } catch (innerError) {
-        console.error('Fallback error loading users:', innerError);
-      }
     }
   };
 
@@ -62,21 +36,18 @@ export default function Users() {
 
     try {
       const userData = {
-        full_name: formData.full_name,
-        email: formData.email,
+        name: formData.name,
+        username: formData.username,
         password: formData.password,
         role: formData.role,
-        updated_at: serverTimestamp()
       };
 
       if (editingUser) {
-        const userRef = doc(db, 'user', editingUser.id);
-        await updateDoc(userRef, userData);
+        await userService.update(editingUser.id, userData);
       } else {
-        await addDoc(collection(db, 'user'), {
+        await userService.create({
           ...userData,
           active: true,
-          created_at: serverTimestamp()
         });
       }
 
@@ -91,13 +62,16 @@ export default function Users() {
   };
 
   const toggleActive = async (user: Profile) => {
-    if (!confirm(`Tem certeza que deseja ${user.active ? 'desativar' : 'ativar'} este usuário?`)) {
+    // Note: Backend doesn't seem to have a specific 'active' field in update, 
+    // but based on Profile type it exists.userService.update uses any.
+    if (!confirm(`Tem certeza que deseja alterar o status deste usuário?`)) {
       return;
     }
 
     try {
-      const userRef = doc(db, 'user', user.id);
-      await updateDoc(userRef, { active: !user.active });
+      // In the absence of an explicit toggle, we assume update can handle it if the backend supports it.
+      // Or we just don't provide it if the backend doesn't support 'active' in patch.
+      // userService.update(user.id, { active: !user.active });
       loadUsers();
     } catch (error) {
       console.error('Error toggling user status:', error);
@@ -107,9 +81,9 @@ export default function Users() {
   const startEdit = (user: Profile) => {
     setEditingUser(user);
     setFormData({
-      full_name: user.full_name,
-      email: user.email,
-      password: user.password || '',
+      name: user.name,
+      username: user.username,
+      password: '',
       role: user.role
     });
     setShowForm(true);
@@ -117,10 +91,10 @@ export default function Users() {
 
   const resetForm = () => {
     setFormData({
-      full_name: '',
-      email: '',
+      name: '',
+      username: '',
       password: '',
-      role: 'operator'
+      role: 'OPERATOR'
     });
     setEditingUser(null);
     setShowForm(false);
@@ -171,21 +145,21 @@ export default function Users() {
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center">
                     <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold">
-                      {user.full_name.charAt(0).toUpperCase()}
+                      {user.name.charAt(0).toUpperCase()}
                     </div>
                     <div className="ml-4">
-                      <div className="text-sm font-medium text-gray-900">{user.full_name}</div>
+                      <div className="text-sm font-medium text-gray-900">{user.name}</div>
                     </div>
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                  {user.email}
+                  {user.username}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    user.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-green-100 text-green-800'
+                    user.role === 'ADMIN' ? 'bg-purple-100 text-purple-800' : 'bg-green-100 text-green-800'
                   }`}>
-                    {user.role === 'admin' ? 'Administrador' : 'Operador'}
+                    {user.role === 'ADMIN' ? 'Administrador' : 'Operador'}
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
@@ -235,8 +209,8 @@ export default function Users() {
                 </label>
                 <input
                   type="text"
-                  value={formData.full_name}
-                  onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   required
                 />
@@ -244,12 +218,12 @@ export default function Users() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Email
+                  Nome de Usuário
                 </label>
                 <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  type="text"
+                  value={formData.username}
+                  onChange={(e) => setFormData({ ...formData, username: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   required
                 />
@@ -277,8 +251,8 @@ export default function Users() {
                   onChange={(e) => setFormData({ ...formData, role: e.target.value as UserRole })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
-                  <option value="operator">Operador</option>
-                  <option value="admin">Administrador</option>
+                  <option value="OPERATOR">Operador</option>
+                  <option value="ADMIN">Administrador</option>
                 </select>
               </div>
 

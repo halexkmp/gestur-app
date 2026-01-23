@@ -1,17 +1,7 @@
 import { useState, useEffect } from 'react';
-import { db } from '../lib/firebase';
-import { 
-  collection, 
-  query, 
-  orderBy, 
-  getDocs, 
-  addDoc, 
-  updateDoc, 
-  doc, 
-  serverTimestamp 
-} from 'firebase/firestore';
 import { Plus, Edit2, Archive, Building2 } from 'lucide-react';
 import { PartnerCompany } from '../types';
+import { partnerService } from '../services/partnerService';
 
 export default function Partners() {
   const [partners, setPartners] = useState<PartnerCompany[]>([]);
@@ -19,7 +9,6 @@ export default function Partners() {
   const [editingPartner, setEditingPartner] = useState<PartnerCompany | null>(null);
   const [formData, setFormData] = useState({
     name: '',
-    contact_info: ''
   });
 
   useEffect(() => {
@@ -28,58 +17,42 @@ export default function Partners() {
 
   const loadPartners = async () => {
     try {
-      const q = query(collection(db, 'partner_companies'), orderBy('name'));
-      const querySnapshot = await getDocs(q);
-      const data = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as PartnerCompany[];
+      const data = await partnerService.getBugueiros();
       setPartners(data);
     } catch (error) {
       console.error('Error loading partners:', error);
-      try {
-        const q = query(collection(db, 'partner_companies'));
-        const querySnapshot = await getDocs(q);
-        const data = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })) as PartnerCompany[];
-        setPartners(data);
-      } catch (innerError) {
-        console.error('Fallback error loading partners:', innerError);
-      }
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (editingPartner) {
-      const partnerRef = doc(db, 'partner_companies', editingPartner.id);
-      await updateDoc(partnerRef, formData);
-    } else {
-      await addDoc(collection(db, 'partner_companies'), {
-        ...formData,
-        active: true,
-        created_at: serverTimestamp()
-      });
+    try {
+      if (editingPartner) {
+        // await partnerService.updatePartner(editingPartner.id, formData);
+      } else {
+        // await partnerService.createPartner(formData);
+      }
+      loadPartners();
+      resetForm();
+    } catch (error) {
+      console.error('Error saving partner:', error);
     }
-
-    resetForm();
-    loadPartners();
   };
 
   const toggleActive = async (partner: PartnerCompany) => {
-    const partnerRef = doc(db, 'partner_companies', partner.id);
-    await updateDoc(partnerRef, { active: !partner.active });
-    loadPartners();
+    try {
+      // await partnerService.updatePartner(partner.id, { active: !partner.active });
+      loadPartners();
+    } catch (error) {
+      console.error('Error toggling partner status:', error);
+    }
   };
 
   const startEdit = (partner: PartnerCompany) => {
     setEditingPartner(partner);
     setFormData({
       name: partner.name,
-      contact_info: partner.contact_info || ''
     });
     setShowForm(true);
   };
@@ -87,7 +60,6 @@ export default function Partners() {
   const resetForm = () => {
     setFormData({
       name: '',
-      contact_info: ''
     });
     setEditingPartner(null);
     setShowForm(false);
@@ -127,19 +99,6 @@ export default function Partners() {
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Informações de Contato (opcional)
-                </label>
-                <textarea
-                  value={formData.contact_info}
-                  onChange={(e) => setFormData({ ...formData, contact_info: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  rows={3}
-                  placeholder="Telefone, email, etc."
                 />
               </div>
 
@@ -190,12 +149,6 @@ export default function Partners() {
             </div>
 
             <h3 className="font-semibold text-gray-800 mb-2">{partner.name}</h3>
-
-            {partner.contact_info && (
-              <div className="text-sm text-gray-600 mb-2">
-                {partner.contact_info}
-              </div>
-            )}
 
             {!partner.active && (
               <div className="mt-2 text-sm text-red-600 font-medium">

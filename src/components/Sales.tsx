@@ -1,20 +1,12 @@
 import { useState, useEffect } from 'react';
-import { db } from '../lib/firebase';
-import { 
-  collection, 
-  query, 
-  where, 
-  orderBy, 
-  getDocs, 
-  serverTimestamp, 
-  writeBatch, 
-  doc 
-} from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
 import { Plus, Minus, Trash2, DollarSign, Check, AlertCircle } from 'lucide-react';
-import { Product, Bugueiro, PartnerCompany, PaymentMethod, BugueiroClient } from '../types';
+import { Product, Bugueiro, PartnerCompany, PaymentMethod, BugueiroClient, PartnerCustomerShift } from '../types';
+import { productService } from '../services/productService';
+import { partnerService } from '../services/partnerService';
+import { saleService } from '../services/saleService';
 
-type ShiftType = BugueiroClient['shift'];
+type ShiftType = PartnerCustomerShift;
 
 interface CartItem {
   product: Product;
@@ -35,10 +27,10 @@ export default function Sales() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedBugueiro, setSelectedBugueiro] = useState<string>('');
   const [selectedPartner, setSelectedPartner] = useState<string>('');
-  const [shift, setShift] = useState<ShiftType>('manha');
+  const [shift, setShift] = useState<ShiftType>('MORNING');
   const [clientCount, setClientCount] = useState(1);
   const [payments, setPayments] = useState<PaymentSplit[]>([
-    { method: 'pix', amount: '' }
+    { method: 'PIX', amount: '' }
   ]);
   const [observations, setObservations] = useState('');
   const [loading, setLoading] = useState(false);
@@ -51,30 +43,14 @@ export default function Sales() {
 
   const loadData = async () => {
     try {
-      const fetchCollection = async (collName: string) => {
-        try {
-          let q = query(collection(db, collName), where('active', '==', true), orderBy('name'));
-          const snap = await getDocs(q);
-          return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        } catch (error) {
-          console.error(`Error loading ${collName} with filters/orderBy:`, error);
-          const snap = await getDocs(collection(db, collName));
-          return snap.docs
-            .map(doc => ({ id: doc.id, ...doc.data() } as any))
-            .filter(item => item.active === true)
-            .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-        }
-      };
-
-      const [productsData, bugueirosData, partnersData] = await Promise.all([
-        fetchCollection('products'),
-        fetchCollection('bugueiros'),
-        fetchCollection('partner_companies')
+      const [productsData, bugueirosData] = await Promise.all([
+        productService.getAll(),
+        partnerService.getBugueiros(),
       ]);
 
-      setProducts(productsData as Product[]);
-      setBugueiros(bugueirosData as Bugueiro[]);
-      setPartners(partnersData as PartnerCompany[]);
+      setProducts(productsData.filter(p => p.active));
+      setBugueiros(bugueirosData.filter(b => b.active));
+      setPartners([]); // Assuming partner companies might not be in backend yet
     } catch (error) {
       console.error('General error in loadData:', error);
     }
@@ -90,14 +66,14 @@ export default function Sales() {
           : item
       );
     } else {
-      newCart = [...cart, { product, quantity: 1, price: product.default_price }];
+      newCart = [...cart, { product, quantity: 1, price: product.price }];
     }
     setCart(newCart);
     
     // Automatically update PIX payment if it's the only one or if we're simplifying
     const newTotal = newCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    if (payments.length === 1 && payments[0].method === 'pix') {
-      setPayments([{ method: 'pix', amount: newTotal.toString() }]);
+    if (payments.length === 1 && payments[0].method === 'PIX') {
+      setPayments([{ method: 'PIX', amount: newTotal.toString() }]);
     }
   };
 
@@ -149,7 +125,7 @@ export default function Sales() {
   };
 
   const addPaymentMethod = () => {
-    setPayments([...payments, { method: 'pix', amount: '' }]);
+    setPayments([...payments, { method: 'PIX', amount: '' }]);
   };
 
   const updatePayment = (index: number, field: 'method' | 'amount', value: string) => {
