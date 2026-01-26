@@ -1,5 +1,5 @@
 import { api } from '../lib/api';
-import { Product } from '../types';
+import { Product, UpdateStockRequest, StockResponse } from '../types';
 
 export const productService = {
   getAll: () => api.get<Product[]>('/products/'),
@@ -9,4 +9,6 @@ export const productService = {
   update: (id: string, product: Partial<Product>) => 
     api.patch<Product>(`/products/${id}`, product),
   delete: (id: string) => api.delete(`/products/${id}`),
+  updateStock: (data: UpdateStockRequest[]) =>
+    api.post<StockResponse[]>('/products/stock/update', data),
 };

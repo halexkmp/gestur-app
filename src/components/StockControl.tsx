@@ -1,25 +1,12 @@
 import { useState, useEffect } from 'react';
-import { db } from '../lib/firebase';
-import { 
-  collection, 
-  query, 
-  where, 
-  orderBy, 
-  getDocs, 
-  addDoc, 
-  updateDoc, 
-  doc, 
-  limit, 
-  serverTimestamp, 
-  getDoc 
-} from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
 import { Package, Edit, AlertCircle } from 'lucide-react';
 import { Product, StockChange } from '../types';
+import { productService } from '../services/productService';
 
 type StockChangeWithRelations = StockChange & {
-  products: { name: string } | null;
-  profiles: { full_name: string } | null;
+  products?: { name: string } | null;
+  profiles?: { full_name: string } | null;
 };
 
 export default function StockControl() {
@@ -29,7 +16,7 @@ export default function StockControl() {
   const [selectedProduct, setSelectedProduct] = useState<string>('');
   const [showModal, setShowModal] = useState(false);
   const [formData, setFormData] = useState({
-    change_type: 'entrada' as 'entrada' | 'saida' | 'ajuste',
+    change_type: 'IN' as 'IN' | 'OUT',
     quantity: '',
     reason: ''
   });
@@ -42,87 +29,15 @@ export default function StockControl() {
 
   const loadData = async () => {
     try {
-      // Load products
-      let productsData: Product[] = [];
-      try {
-        const productsQuery = query(
-          collection(db, 'products'), 
-          where('has_stock', '==', true),
-          where('active', '==', true),
-          orderBy('name')
-        );
-        const productsSnapshot = await getDocs(productsQuery);
-        productsData = productsSnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })) as Product[];
-      } catch (error) {
-        console.error('Error loading products with filters and orderBy:', error);
-        // Fallback: simple query and manual filter
-        const productsSnapshot = await getDocs(collection(db, 'products'));
-        productsData = productsSnapshot.docs
-          .map(doc => ({ id: doc.id, ...doc.data() } as Product))
-          .filter(p => p.has_stock === true && p.active === true)
-          .sort((a, b) => a.name.localeCompare(b.name));
-      }
-      setProducts(productsData);
+      // Load products from API
+      const productsData = await productService.getAll();
+      setProducts(productsData.filter(p => p.active).sort((a, b) => a.name.localeCompare(b.name)));
 
-      // Load history
-      let historyDocs: any[] = [];
-      try {
-        const historyQuery = query(
-          collection(db, 'stock_changes'),
-          orderBy('created_at', 'desc'),
-          limit(50)
-        );
-        const historySnapshot = await getDocs(historyQuery);
-        historyDocs = historySnapshot.docs;
-      } catch (error) {
-        console.error('Error loading stock history with orderBy:', error);
-        // Fallback: simple query, manual sort and limit
-        const historySnapshot = await getDocs(collection(db, 'stock_changes'));
-        historyDocs = historySnapshot.docs
-          .sort((a, b) => {
-            const dateA = a.data().created_at?.toDate() || 0;
-            const dateB = b.data().created_at?.toDate() || 0;
-            return dateB - dateA;
-          })
-          .slice(0, 50);
-      }
-      
-      const historyData = await Promise.all(historyDocs.map(async (docSnapshot) => {
-        const data = docSnapshot.data();
-        
-        // Fetch related product
-        let productName = '-';
-        if (data.product_id) {
-          const productDoc = await getDoc(doc(db, 'products', data.product_id));
-          if (productDoc.exists()) {
-            productName = productDoc.data().name;
-          }
-        }
-
-        // Fetch related profile
-        let fullName = '-';
-        if (data.user_id) {
-          const profileDoc = await getDoc(doc(db, 'user', data.user_id));
-          if (profileDoc.exists()) {
-            fullName = profileDoc.data().full_name;
-          }
-        }
-
-        return {
-          id: docSnapshot.id,
-          ...data,
-          products: { name: productName },
-          profiles: { full_name: fullName },
-          created_at: data.created_at?.toDate?.()?.toISOString() || new Date().toISOString()
-        } as StockChangeWithRelations;
-      }));
-
-      setStockHistory(historyData);
+      // History - The backend doesn't have a direct history endpoint in OpenAPI yet, 
+      // but we'll leave this empty for now as requested.
+      setStockHistory([]);
     } catch (error) {
-      console.error('General error in loadData:', error);
+      console.error('Error loading products:', error);
     }
   };
 
@@ -144,32 +59,18 @@ export default function StockControl() {
 
     try {
       const quantity = parseInt(formData.quantity);
-      const quantityChange = formData.change_type === 'saida' ? -quantity : quantity;
-
-      await addDoc(collection(db, 'stock_changes'), {
+      
+      await productService.updateStock([{
         product_id: selectedProduct,
         change_type: formData.change_type,
-        quantity_change: quantityChange,
-        reason: formData.reason,
-        user_id: profile!.id,
-        created_at: serverTimestamp()
-      });
-
-      const product = products.find(p => p.id === selectedProduct);
-      if (product) {
-        const newQuantity = product.stock_quantity + quantityChange;
-        const productRef = doc(db, 'products', selectedProduct);
-        await updateDoc(productRef, {
-          stock_quantity: newQuantity,
-          updated_at: serverTimestamp()
-        });
-      }
+        quantity_change: quantity
+      }]);
 
       resetForm();
       loadData();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error updating stock:', err);
-      setError('Erro ao atualizar estoque');
+      setError(err.message || 'Erro ao atualizar estoque');
     } finally {
       setLoading(false);
     }
@@ -177,7 +78,7 @@ export default function StockControl() {
 
   const resetForm = () => {
     setFormData({
-      change_type: 'entrada',
+      change_type: 'IN',
       quantity: '',
       reason: ''
     });
@@ -186,11 +87,9 @@ export default function StockControl() {
     setError('');
   };
 
-  const changeTypeLabels = {
-    entrada: 'Entrada',
-    saida: 'Saída',
-    ajuste: 'Ajuste',
-    venda: 'Venda'
+  const changeTypeLabels: Record<string, string> = {
+    IN: 'Entrada',
+    OUT: 'Saída',
   };
 
   return (
@@ -254,9 +153,8 @@ export default function StockControl() {
                   onChange={(e) => setFormData({ ...formData, change_type: e.target.value as any })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
-                  <option value="entrada">Entrada</option>
-                  <option value="saida">Saída</option>
-                  <option value="ajuste">Ajuste</option>
+                  <option value="IN">Entrada</option>
+                  <option value="OUT">Saída</option>
                 </select>
               </div>
 
@@ -357,9 +255,8 @@ export default function StockControl() {
                   </td>
                   <td className="px-4 py-3 text-sm">
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      change.change_type === 'entrada' ? 'bg-green-100 text-green-700' :
-                      change.change_type === 'saida' ? 'bg-red-100 text-red-700' :
-                      change.change_type === 'venda' ? 'bg-blue-100 text-blue-700' :
+                      change.change_type === 'IN' ? 'bg-green-100 text-green-700' :
+                      change.change_type === 'OUT' ? 'bg-red-100 text-red-700' :
                       'bg-gray-100 text-gray-700'
                     }`}>
                       {changeTypeLabels[change.change_type]}

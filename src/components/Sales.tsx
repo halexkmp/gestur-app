@@ -43,14 +43,15 @@ export default function Sales() {
 
   const loadData = async () => {
     try {
-      const [productsData, bugueirosData] = await Promise.all([
+      const [productsData, bugueirosData, partnersData] = await Promise.all([
         productService.getAll(),
-        partnerService.getBugueiros(),
+        partnerService.getByType('BUGGYMAN'),
+        partnerService.getByType('BUSINESS'),
       ]);
 
       setProducts(productsData.filter(p => p.active));
       setBugueiros(bugueirosData.filter(b => b.active));
-      setPartners([]); // Assuming partner companies might not be in backend yet
+      setPartners(partnersData.filter(p => p.active));
     } catch (error) {
       console.error('General error in loadData:', error);
     }
@@ -86,8 +87,8 @@ export default function Sales() {
     setCart(newCart);
 
     const newTotal = newCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    if (payments.length === 1 && payments[0].method === 'pix') {
-      setPayments([{ method: 'pix', amount: newTotal.toString() }]);
+    if (payments.length === 1 && payments[0].method === 'PIX') {
+      setPayments([{ method: 'PIX', amount: newTotal.toString() }]);
     }
   };
 
@@ -101,8 +102,8 @@ export default function Sales() {
     setCart(newCart);
 
     const newTotal = newCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    if (payments.length === 1 && payments[0].method === 'pix') {
-      setPayments([{ method: 'pix', amount: newTotal.toString() }]);
+    if (payments.length === 1 && payments[0].method === 'PIX') {
+      setPayments([{ method: 'PIX', amount: newTotal.toString() }]);
     }
   };
 
@@ -111,8 +112,8 @@ export default function Sales() {
     setCart(newCart);
 
     const newTotal = newCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    if (payments.length === 1 && payments[0].method === 'pix') {
-      setPayments([{ method: 'pix', amount: newTotal.toString() }]);
+    if (payments.length === 1 && payments[0].method === 'PIX') {
+      setPayments([{ method: 'PIX', amount: newTotal.toString() }]);
     }
   };
 
@@ -177,93 +178,28 @@ export default function Sales() {
     setError('');
 
     try {
-      const total = calculateTotal();
-      const batch = writeBatch(db);
-
-      // Create sale
-      const saleRef = doc(collection(db, 'sales'));
-      batch.set(saleRef, {
-        total_amount: total,
-        bugueiro_id: selectedBugueiro || null,
-        partner_company_id: selectedPartner || null,
-        user_id: profile!.id,
-        status: 'completed',
-        observations: observations || null,
-        created_at: serverTimestamp()
-      });
-
-      // Create sale items and update stock
-      cart.forEach(item => {
-        const itemRef = doc(collection(db, 'sale_items'));
-        batch.set(itemRef, {
-          sale_id: saleRef.id,
+      const saleData = {
+        partner_id: selectedPartner || selectedBugueiro || undefined,
+        items: cart.map(item => ({
           product_id: item.product.id,
           quantity: item.quantity,
-          unit_price: item.price,
-          total_price: item.price * item.quantity
-        });
-
-        // Decrement stock if applicable
-        if (item.product.has_stock) {
-          const productRef = doc(db, 'products', item.product.id);
-          batch.update(productRef, {
-            stock_quantity: item.product.stock_quantity - item.quantity,
-            updated_at: serverTimestamp()
-          });
-
-          // Log stock change
-          const stockChangeRef = doc(collection(db, 'stock_changes'));
-          batch.set(stockChangeRef, {
-            product_id: item.product.id,
-            change_type: 'saida',
-            quantity_change: -item.quantity,
-            reason: `Venda ${saleRef.id}`,
-            user_id: profile!.id,
-            created_at: serverTimestamp()
-          });
-        }
-      });
-
-      // Create payments
-      if (!selectedPartner) {
-        payments
+          unit_price: item.price
+        })),
+        payments: !selectedPartner ? payments
           .filter(p => parseFloat(p.amount) > 0)
-          .forEach(p => {
-            const paymentRef = doc(collection(db, 'sale_payments'));
-            batch.set(paymentRef, {
-              sale_id: saleRef.id,
-              payment_method: p.method,
-              amount: parseFloat(p.amount)
-            });
-          });
-      }
+          .map(p => ({
+            payment_method: p.method,
+            amount: parseFloat(p.amount)
+          })) : [],
+        observations: observations || undefined,
+        partner_customer_shift: selectedBugueiro ? shift : undefined,
+        partner_customer_date: selectedBugueiro ? new Date().toISOString().split('T')[0] : undefined,
+      };
 
-      // Create bugueiro clients
-      if (selectedBugueiro) {
-        for (let i = 0; i < clientCount; i++) {
-          const clientRef = doc(collection(db, 'bugueiro_clients'));
-          batch.set(clientRef, {
-            bugueiro_id: selectedBugueiro,
-            sale_id: saleRef.id,
-            shift,
-            client_date: serverTimestamp()
-          });
-        }
-      }
+      await saleService.create(saleData);
 
-      await batch.commit();
-
-      // Update local products state to reflect new stock
-      setProducts(prevProducts => prevProducts.map(p => {
-        const cartItem = cart.find(item => item.product.id === p.id);
-        if (cartItem && p.has_stock) {
-          return {
-            ...p,
-            stock_quantity: p.stock_quantity - cartItem.quantity
-          };
-        }
-        return p;
-      }));
+      // Refresh data to get updated stock quantities
+      await loadData();
 
       setSuccess(true);
       setTimeout(() => {
@@ -271,9 +207,9 @@ export default function Sales() {
         setSuccess(false);
       }, 2000);
 
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error completing sale:', err);
-      setError('Erro ao finalizar venda. Tente novamente.');
+      setError(err.response?.data?.message || 'Erro ao finalizar venda. Tente novamente.');
     } finally {
       setLoading(false);
     }
@@ -283,9 +219,9 @@ export default function Sales() {
     setCart([]);
     setSelectedBugueiro('');
     setSelectedPartner('');
-    setShift('manha');
+    setShift('MORNING');
     setClientCount(1);
-    setPayments([{ method: 'pix', amount: '' }]);
+    setPayments([{ method: 'PIX', amount: '' }]);
     setObservations('');
     setError('');
   };

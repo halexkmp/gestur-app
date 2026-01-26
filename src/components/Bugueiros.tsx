@@ -17,7 +17,7 @@ export default function Bugueiros() {
 
   const loadBugueiros = async () => {
     try {
-      const data = await partnerService.getBugueiros();
+      const data = await partnerService.getByType('BUGGYMAN');
       setBugueiros(data);
     } catch (error) {
       console.error('Error loading bugueiros:', error);
@@ -29,9 +29,10 @@ export default function Bugueiros() {
 
     try {
       if (editingBugueiro) {
-        // await partnerService.updateBugueiro(editingBugueiro.id, formData);
+        await partnerService.update(editingBugueiro.id, formData);
       } else {
-        // await partnerService.createBugueiro(formData);
+        // Create is not in OpenAPI, but we can try if there was a mistake or just leave it for now
+        // await partnerService.create(formData);
       }
       loadBugueiros();
       resetForm();
@@ -42,7 +43,7 @@ export default function Bugueiros() {
 
   const toggleActive = async (bugueiro: Bugueiro) => {
     try {
-      // await partnerService.updateBugueiro(bugueiro.id, { active: !bugueiro.active });
+      await partnerService.update(bugueiro.id, { ...bugueiro, active: !bugueiro.active });
       loadBugueiros();
     } catch (error) {
       console.error('Error toggling bugueiro status:', error);

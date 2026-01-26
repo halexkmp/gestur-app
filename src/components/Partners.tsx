@@ -17,7 +17,7 @@ export default function Partners() {
 
   const loadPartners = async () => {
     try {
-      const data = await partnerService.getBugueiros();
+      const data = await partnerService.getByType('BUSINESS');
       setPartners(data);
     } catch (error) {
       console.error('Error loading partners:', error);
@@ -29,9 +29,9 @@ export default function Partners() {
 
     try {
       if (editingPartner) {
-        // await partnerService.updatePartner(editingPartner.id, formData);
+        await partnerService.update(editingPartner.id, formData);
       } else {
-        // await partnerService.createPartner(formData);
+        // await partnerService.create(formData);
       }
       loadPartners();
       resetForm();
@@ -42,7 +42,7 @@ export default function Partners() {
 
   const toggleActive = async (partner: PartnerCompany) => {
     try {
-      // await partnerService.updatePartner(partner.id, { active: !partner.active });
+      await partnerService.update(partner.id, { ...partner, active: !partner.active });
       loadPartners();
     } catch (error) {
       console.error('Error toggling partner status:', error);
