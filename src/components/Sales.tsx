@@ -160,9 +160,9 @@ export default function Sales() {
       return false;
     }
 
-    // Check stock for items with has_stock: true
+    // Check stock
     for (const item of cart) {
-      if (item.product.has_stock && item.product.stock_quantity < item.quantity) {
+      if (item.product.stock_quantity < item.quantity) {
         setError(`Estoque insuficiente para ${item.product.name}. Disponível: ${item.product.stock_quantity}`);
         return false;
       }

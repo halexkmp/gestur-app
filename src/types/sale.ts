@@ -3,7 +3,7 @@ export type PaymentMethod = 'PIX' | 'CURRENCY' | 'CREDIT_CARD';
 
 export interface Sale {
   id: string;
-  sale_number: number;
+  sale_code: string;
   total_amount: number;
   partner_id: string | null;
   user_id: string;

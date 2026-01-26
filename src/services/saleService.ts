@@ -7,4 +7,11 @@ export const saleService = {
   create: (sale: any) => api.post<Sale>('/sales/', sale),
   update: (id: string, sale: any) => api.patch<Sale>(`/sales/${id}`, sale),
   delete: (id: string) => api.delete(`/sales/${id}`),
+  getReport: (params: { 
+    date_from?: string; 
+    date_to?: string; 
+    user_id?: string; 
+    product_id?: string; 
+    partner_id?: string; 
+  }) => api.get<Sale[]>('/reports/sales', { params }),
 };
