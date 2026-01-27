@@ -1,10 +1,10 @@
-export type ProductType = 'DRINK' | 'ZIPLINE' | 'PHOTO_COMBO' | 'DRONE_COMBO';
+export type ProductType = 'SERVICE' | 'CONSUMABLE';
 
 export interface Product {
   id: string;
   name: string;
   type: ProductType;
-  price: number;
+  default_price: number;
   stock_quantity: number;
   active: boolean;
   created_at: string;

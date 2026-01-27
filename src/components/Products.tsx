@@ -9,8 +9,8 @@ export default function Products() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [formData, setFormData] = useState({
     name: '',
-    type: 'DRINK' as ProductType,
-    price: '',
+    type: 'CONSUMABLE' as ProductType,
+    default_price: '',
     stock_quantity: '0'
   });
 
@@ -33,7 +33,7 @@ export default function Products() {
     const productData = {
       name: formData.name,
       type: formData.type,
-      price: parseFloat(formData.price),
+      default_price: parseFloat(formData.default_price),
       stock_quantity: parseInt(formData.stock_quantity) || 0,
     };
 
@@ -60,7 +60,7 @@ export default function Products() {
     setFormData({
       name: product.name,
       type: product.type,
-      price: product.price.toString(),
+      default_price: product.default_price.toString(),
       stock_quantity: product.stock_quantity.toString()
     });
     setShowForm(true);
@@ -69,8 +69,8 @@ export default function Products() {
   const resetForm = () => {
     setFormData({
       name: '',
-      type: 'DRINK',
-      price: '',
+      type: 'SERVICE',
+      default_price: '',
       stock_quantity: '0'
     });
     setEditingProduct(null);
@@ -78,10 +78,8 @@ export default function Products() {
   };
 
   const productTypeLabels: Record<ProductType, string> = {
-    DRINK: 'Bebida',
-    ZIPLINE: 'Tirolesa',
-    PHOTO_COMBO: 'Combo Foto',
-    DRONE_COMBO: 'Combo Drone'
+      CONSUMABLE: 'Consumível',
+    SERVICE: 'Serviço',
   };
 
   return (
@@ -130,10 +128,8 @@ export default function Products() {
                   onChange={(e) => setFormData({ ...formData, type: e.target.value as ProductType })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
-                  <option value="DRINK">Bebida</option>
-                  <option value="ZIPLINE">Tirolesa</option>
-                  <option value="PHOTO_COMBO">Combo Foto</option>
-                  <option value="DRONE_COMBO">Combo Drone</option>
+                  <option value="CONSUMABLE">Consumível</option>
+                  <option value="SERVICE">Serviço</option>
                 </select>
               </div>
 
@@ -144,8 +140,8 @@ export default function Products() {
                 <input
                   type="number"
                   step="0.01"
-                  value={formData.price}
-                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                  value={formData.default_price}
+                  onChange={(e) => setFormData({ ...formData, default_price: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   required
                 />
@@ -215,7 +211,7 @@ export default function Products() {
               {productTypeLabels[product.type]}
             </p>
             <p className="text-lg font-bold text-blue-600 mb-2">
-              R$ {product.price?.toFixed(2)}
+              R$ {product.default_price?.toFixed(2)}
             </p>
 
             <div className={`text-sm px-2 py-1 rounded ${

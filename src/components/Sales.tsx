@@ -11,7 +11,7 @@ type ShiftType = PartnerCustomerShift;
 interface CartItem {
   product: Product;
   quantity: number;
-  price: number;
+  default_price: number;
 }
 
 interface PaymentSplit {
@@ -67,12 +67,12 @@ export default function Sales() {
           : item
       );
     } else {
-      newCart = [...cart, { product, quantity: 1, price: product.price }];
+      newCart = [...cart, { product, quantity: 1, default_price: product.default_price }];
     }
     setCart(newCart);
     
     // Automatically update PIX payment if it's the only one or if we're simplifying
-    const newTotal = newCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const newTotal = newCart.reduce((sum, item) => sum + (item.default_price * item.quantity), 0);
     if (payments.length === 1 && payments[0].method === 'PIX') {
       setPayments([{ method: 'PIX', amount: newTotal.toString() }]);
     }
@@ -86,22 +86,22 @@ export default function Sales() {
     ).filter(item => item.quantity > 0);
     setCart(newCart);
 
-    const newTotal = newCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const newTotal = newCart.reduce((sum, item) => sum + (item.default_price * item.quantity), 0);
     if (payments.length === 1 && payments[0].method === 'PIX') {
       setPayments([{ method: 'PIX', amount: newTotal.toString() }]);
     }
   };
 
   const updatePrice = (productId: string, newPrice: string) => {
-    const price = parseFloat(newPrice) || 0;
+    const default_price = parseFloat(newPrice) || 0;
     const newCart = cart.map(item =>
       item.product.id === productId
-        ? { ...item, price }
+        ? { ...item, default_price }
         : item
     );
     setCart(newCart);
 
-    const newTotal = newCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const newTotal = newCart.reduce((sum, item) => sum + (item.default_price * item.quantity), 0);
     if (payments.length === 1 && payments[0].method === 'PIX') {
       setPayments([{ method: 'PIX', amount: newTotal.toString() }]);
     }
@@ -111,14 +111,14 @@ export default function Sales() {
     const newCart = cart.filter(item => item.product.id !== productId);
     setCart(newCart);
 
-    const newTotal = newCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const newTotal = newCart.reduce((sum, item) => sum + (item.default_price * item.quantity), 0);
     if (payments.length === 1 && payments[0].method === 'PIX') {
       setPayments([{ method: 'PIX', amount: newTotal.toString() }]);
     }
   };
 
   const calculateTotal = () => {
-    return cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    return cart.reduce((sum, item) => sum + (item.default_price * item.quantity), 0);
   };
 
   const calculatePaymentTotal = () => {
@@ -183,7 +183,7 @@ export default function Sales() {
         items: cart.map(item => ({
           product_id: item.product.id,
           quantity: item.quantity,
-          unit_price: item.price
+          unit_price: item.default_price
         })),
         payments: !selectedPartner ? payments
           .filter(p => parseFloat(p.amount) > 0)
@@ -328,7 +328,7 @@ export default function Sales() {
                         <input
                           type="number"
                           step="0.01"
-                          value={item.price}
+                          value={item.default_price}
                           onChange={(e) => updatePrice(item.product.id, e.target.value)}
                           className="w-24 px-2 py-1 border border-gray-300 rounded"
                         />
@@ -336,7 +336,7 @@ export default function Sales() {
                     </div>
                     <div className="text-right">
                       <div className="font-semibold text-gray-800">
-                        R$ {(item.price * item.quantity).toFixed(2)}
+                        R$ {(item.default_price * item.quantity).toFixed(2)}
                       </div>
                       <button
                         onClick={() => removeFromCart(item.product.id)}
