@@ -29,9 +29,9 @@ type ProductRevenue = {
   quantity: number;
 };
 
-type BugueiroCommission = {
-  bugueiro_id: string;
-  bugueiro_name: string;
+type BuggymanCommission = {
+  buggyman_id: string;
+  buggyman_name: string;
   pix_key: string | null;
   client_count: number;
   commission: number;
@@ -52,7 +52,7 @@ export default function Reports() {
   const [sales, setSales] = useState<Sale[]>([]);
   const [paymentSummary, setPaymentSummary] = useState<PaymentSummary[]>([]);
   const [productRevenue, setProductRevenue] = useState<ProductRevenue[]>([]);
-  const [commissions, setCommissions] = useState<BugueiroCommission[]>([]);
+  const [commissions, setCommissions] = useState<BuggymanCommission[]>([]);
   const [loading, setLoading] = useState(false);
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [totalSales, setTotalSales] = useState(0);
@@ -384,9 +384,9 @@ export default function Reports() {
               ) : (
                 <div className="space-y-3">
                   {commissions.map(c => (
-                    <div key={c.bugueiro_id} className="p-3 bg-gray-50 rounded-lg">
+                    <div key={c.buggyman_id} className="p-3 bg-gray-50 rounded-lg">
                       <div className="flex justify-between items-center mb-1">
-                        <span className="font-medium text-gray-800">{c.bugueiro_name}</span>
+                        <span className="font-medium text-gray-800">{c.buggyman_name}</span>
                         <span className="text-lg font-bold text-orange-600">
                           R$ {c.commission.toFixed(2)}
                         </span>
@@ -536,11 +536,11 @@ export default function Reports() {
                   <p className="text-gray-800 font-medium">{viewingSale.sale.user.name || '-'}</p>
                 </div>
                 <div className="bg-gray-50 p-3 rounded-lg">
-                  <p className="text-xs text-gray-500 uppercase font-semibold">Bugueiro</p>
+                  <p className="text-xs text-gray-500 uppercase font-semibold">Buggyman</p>
                   <p className="text-gray-800 font-medium">{viewingSale.sale.bugueiros?.name || '-'}</p>
                 </div>
                 <div className="bg-gray-50 p-3 rounded-lg">
-                  <p className="text-xs text-gray-500 uppercase font-semibold">Empresa Parceira</p>
+                  <p className="text-xs text-gray-500 uppercase font-semibold">Negócio Parceiro</p>
                   <p className="text-gray-800 font-medium">{viewingSale.sale.partner_companies?.name || '-'}</p>
                 </div>
                 <div className="bg-gray-50 p-3 rounded-lg">

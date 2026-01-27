@@ -1,26 +1,26 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit2, Archive, User } from 'lucide-react';
-import { Bugueiro } from '../types';
+import { Plus, Edit2, Archive, Building2 } from 'lucide-react';
+import { Partner, PartnerType } from '../types';
 import { partnerService } from '../services/partnerService';
 
-export default function Bugueiros() {
-  const [bugueiros, setBugueiros] = useState<Bugueiro[]>([]);
+export default function Business() {
+  const [businesses, setBusinesses] = useState<Partner[]>([]);
   const [showForm, setShowForm] = useState(false);
-  const [editingBugueiro, setEditingBugueiro] = useState<Bugueiro | null>(null);
+  const [editingBusiness, setEditingBusiness] = useState<Partner | null>(null);
   const [formData, setFormData] = useState({
-    name: '',
+    name: '', type: PartnerType.BUSINESS
   });
 
   useEffect(() => {
-    loadBugueiros();
+    loadBusinesses();
   }, []);
 
-  const loadBugueiros = async () => {
+  const loadBusinesses = async () => {
     try {
-      const data = await partnerService.getByType('BUGGYMAN');
-      setBugueiros(data);
+      const data = await partnerService.getByType(PartnerType.BUSINESS);
+      setBusinesses(data);
     } catch (error) {
-      console.error('Error loading bugueiros:', error);
+      console.error('Error loading businesses:', error);
     }
   };
 
@@ -28,41 +28,40 @@ export default function Bugueiros() {
     e.preventDefault();
 
     try {
-      if (editingBugueiro) {
-        await partnerService.update(editingBugueiro.id, formData);
+      if (editingBusiness) {
+        await partnerService.update(editingBusiness.id, formData);
       } else {
-        // Create is not in OpenAPI, but we can try if there was a mistake or just leave it for now
-        // await partnerService.create(formData);
+        await partnerService.create({ ...formData, type: PartnerType.BUSINESS });
       }
-      loadBugueiros();
+      loadBusinesses();
       resetForm();
     } catch (error) {
-      console.error('Error saving bugueiro:', error);
+      console.error('Error saving business:', error);
     }
   };
 
-  const toggleActive = async (bugueiro: Bugueiro) => {
+  const toggleActive = async (business: Partner) => {
     try {
-      await partnerService.update(bugueiro.id, { ...bugueiro, active: !bugueiro.active });
-      loadBugueiros();
+      await partnerService.update(business.id, { ...business, active: !business.active });
+      loadBusinesses();
     } catch (error) {
-      console.error('Error toggling bugueiro status:', error);
+      console.error('Error toggling business status:', error);
     }
   };
 
-  const startEdit = (bugueiro: Bugueiro) => {
-    setEditingBugueiro(bugueiro);
+  const startEdit = (business: Partner) => {
+    setEditingBusiness(business);
     setFormData({
-      name: bugueiro.name,
+      name: business.name
     });
     setShowForm(true);
   };
 
   const resetForm = () => {
     setFormData({
-      name: '',
+      name: ''
     });
-    setEditingBugueiro(null);
+    setEditingBusiness(null);
     setShowForm(false);
   };
 
@@ -70,15 +69,15 @@ export default function Bugueiros() {
     <div className="max-w-6xl mx-auto">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-800">Bugueiros</h1>
-          <p className="text-gray-600 mt-1">Gerencie os bugueiros e suas informações</p>
+          <h1 className="text-3xl font-bold text-gray-800">Empresas Parceiros</h1>
+          <p className="text-gray-600 mt-1">Gerencie empresas com pagamento diferido</p>
         </div>
         <button
           onClick={() => setShowForm(true)}
           className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition flex items-center gap-2"
         >
           <Plus className="w-5 h-5" />
-          Novo Bugueiro
+          Nova Empresa
         </button>
       </div>
 
@@ -86,13 +85,13 @@ export default function Bugueiros() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
             <h2 className="text-xl font-bold text-gray-800 mb-4">
-              {editingBugueiro ? 'Editar Bugueiro' : 'Novo Bugueiro'}
+              {editingBusiness ? 'Editar Empresa' : 'Nova Empresa'}
             </h2>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Nome
+                  Nome da Empresa
                 </label>
                 <input
                   type="text"
@@ -102,13 +101,12 @@ export default function Bugueiros() {
                   required
                 />
               </div>
-
               <div className="flex gap-3 pt-4">
                 <button
                   type="submit"
                   className="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition"
                 >
-                  {editingBugueiro ? 'Atualizar' : 'Criar'}
+                  {editingBusiness ? 'Atualizar' : 'Criar'}
                 </button>
                 <button
                   type="button"
@@ -124,34 +122,34 @@ export default function Bugueiros() {
       )}
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {bugueiros.map(bugueiro => (
+        {businesses.map(business => (
           <div
-            key={bugueiro.id}
+            key={business.id}
             className={`bg-white rounded-xl shadow-sm border-2 p-6 ${
-              bugueiro.active ? 'border-gray-200' : 'border-red-200 bg-red-50'
+              business.active ? 'border-gray-200' : 'border-red-200 bg-red-50'
             }`}
           >
             <div className="flex items-start justify-between mb-3">
-              <User className={`w-8 h-8 ${bugueiro.active ? 'text-blue-600' : 'text-gray-400'}`} />
+              <Building2 className={`w-8 h-8 ${business.active ? 'text-blue-600' : 'text-gray-400'}`} />
               <div className="flex gap-2">
                 <button
-                  onClick={() => startEdit(bugueiro)}
+                  onClick={() => startEdit(business)}
                   className="p-1 hover:bg-gray-100 rounded"
                 >
                   <Edit2 className="w-4 h-4 text-gray-600" />
                 </button>
                 <button
-                  onClick={() => toggleActive(bugueiro)}
+                  onClick={() => toggleActive(business)}
                   className="p-1 hover:bg-gray-100 rounded"
                 >
-                  <Archive className={`w-4 h-4 ${bugueiro.active ? 'text-gray-600' : 'text-red-600'}`} />
+                  <Archive className={`w-4 h-4 ${business.active ? 'text-gray-600' : 'text-red-600'}`} />
                 </button>
               </div>
             </div>
 
-            <h3 className="font-semibold text-gray-800 mb-2">{bugueiro.name}</h3>
+            <h3 className="font-semibold text-gray-800 mb-2">{business.name}</h3>
 
-            {!bugueiro.active && (
+            {!business.active && (
               <div className="mt-2 text-sm text-red-600 font-medium">
                 Inativo
               </div>

@@ -4,8 +4,8 @@ import Login from './components/Login';
 import Layout from './components/Layout';
 import Sales from './components/Sales';
 import Products from './components/Products';
-import Bugueiros from './components/Bugueiros';
-import Partners from './components/Partners';
+import Buggyman from './components/Buggyman';
+import Business from './components/Business';
 import Reports from './components/Reports';
 import StockControl from './components/StockControl';
 import Users from './components/Users';
@@ -33,10 +33,10 @@ function AppContent() {
         return <Sales />;
       case 'products':
         return <Products />;
-      case 'bugueiros':
-        return <Bugueiros />;
-      case 'partners':
-        return <Partners />;
+      case 'buggyman':
+        return <Buggyman />;
+      case 'business':
+        return <Business />;
       case 'reports':
         return <Reports />;
       case 'stock':

@@ -1,26 +1,28 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit2, Archive, Building2 } from 'lucide-react';
-import { PartnerCompany } from '../types';
+import { Plus, Edit2, Archive, User } from 'lucide-react';
+import { Partner, PartnerType } from '../types';
 import { partnerService } from '../services/partnerService';
 
-export default function Partners() {
-  const [partners, setPartners] = useState<PartnerCompany[]>([]);
+export default function Buggyman() {
+  const [buggymans, setBuggymans] = useState<Partner[]>([]);
   const [showForm, setShowForm] = useState(false);
-  const [editingPartner, setEditingPartner] = useState<PartnerCompany | null>(null);
+  const [editingBuggyman, setEditingBuggyman] = useState<Partner | null>(null);
   const [formData, setFormData] = useState({
     name: '',
+    pix_key: '',
+    type: PartnerType.BUGGYMAN
   });
 
   useEffect(() => {
-    loadPartners();
+    loadBuggymans();
   }, []);
 
-  const loadPartners = async () => {
+  const loadBuggymans = async () => {
     try {
-      const data = await partnerService.getByType('BUSINESS');
-      setPartners(data);
+      const data = await partnerService.getByType(PartnerType.BUGGYMAN);
+      setBuggymans(data);
     } catch (error) {
-      console.error('Error loading partners:', error);
+      console.error('Error loading buggymans:', error);
     }
   };
 
@@ -28,31 +30,32 @@ export default function Partners() {
     e.preventDefault();
 
     try {
-      if (editingPartner) {
-        await partnerService.update(editingPartner.id, formData);
+      if (editingBuggyman) {
+        await partnerService.update(editingBuggyman.id, formData);
       } else {
-        // await partnerService.create(formData);
+        await partnerService.create({ ...formData });
       }
-      loadPartners();
+      loadBuggymans();
       resetForm();
     } catch (error) {
-      console.error('Error saving partner:', error);
+      console.error('Error saving buggymans:', error);
     }
   };
 
-  const toggleActive = async (partner: PartnerCompany) => {
+  const toggleActive = async (buggyman: Partner) => {
     try {
-      await partnerService.update(partner.id, { ...partner, active: !partner.active });
-      loadPartners();
+      await partnerService.update(buggyman.id, { ...buggyman, active: !buggyman.active });
+      loadBuggymans();
     } catch (error) {
-      console.error('Error toggling partner status:', error);
+      console.error('Error toggling buggyman status:', error);
     }
   };
 
-  const startEdit = (partner: PartnerCompany) => {
-    setEditingPartner(partner);
+  const startEdit = (buggyman: Partner) => {
+    setEditingBuggyman(buggyman);
     setFormData({
-      name: partner.name,
+      name: buggyman.name,
+      pix_key: buggyman.pix_key || '',
     });
     setShowForm(true);
   };
@@ -60,8 +63,9 @@ export default function Partners() {
   const resetForm = () => {
     setFormData({
       name: '',
+      pix_key: '',
     });
-    setEditingPartner(null);
+    setEditingBuggyman(null);
     setShowForm(false);
   };
 
@@ -69,15 +73,15 @@ export default function Partners() {
     <div className="max-w-6xl mx-auto">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-800">Empresas Parceiras</h1>
-          <p className="text-gray-600 mt-1">Gerencie empresas com pagamento diferido</p>
+          <h1 className="text-3xl font-bold text-gray-800">Buggymans</h1>
+          <p className="text-gray-600 mt-1">Gerencie os bugueiros e suas informações</p>
         </div>
         <button
           onClick={() => setShowForm(true)}
           className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition flex items-center gap-2"
         >
           <Plus className="w-5 h-5" />
-          Nova Empresa
+          Novo Bugueiro
         </button>
       </div>
 
@@ -85,13 +89,13 @@ export default function Partners() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
             <h2 className="text-xl font-bold text-gray-800 mb-4">
-              {editingPartner ? 'Editar Empresa' : 'Nova Empresa'}
+              {editingBuggyman ? 'Editar Buggyman' : 'Novo Buggyman'}
             </h2>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Nome da Empresa
+                  Nome
                 </label>
                 <input
                   type="text"
@@ -100,6 +104,18 @@ export default function Partners() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   required
                 />
+
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Chave Pix
+                  </label>
+                  <input
+                      type="text"
+                      value={formData.pix_key}
+                      onChange={(e) => setFormData({ ...formData, pix_key: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      required
+                  />
+
               </div>
 
               <div className="flex gap-3 pt-4">
@@ -107,7 +123,7 @@ export default function Partners() {
                   type="submit"
                   className="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition"
                 >
-                  {editingPartner ? 'Atualizar' : 'Criar'}
+                  {editingBuggyman ? 'Atualizar' : 'Criar'}
                 </button>
                 <button
                   type="button"
@@ -123,34 +139,34 @@ export default function Partners() {
       )}
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {partners.map(partner => (
+        {buggymans.map(buggyman => (
           <div
-            key={partner.id}
+            key={buggyman.id}
             className={`bg-white rounded-xl shadow-sm border-2 p-6 ${
-              partner.active ? 'border-gray-200' : 'border-red-200 bg-red-50'
+              buggyman.active ? 'border-gray-200' : 'border-red-200 bg-red-50'
             }`}
           >
             <div className="flex items-start justify-between mb-3">
-              <Building2 className={`w-8 h-8 ${partner.active ? 'text-blue-600' : 'text-gray-400'}`} />
+              <User className={`w-8 h-8 ${buggyman.active ? 'text-blue-600' : 'text-gray-400'}`} />
               <div className="flex gap-2">
                 <button
-                  onClick={() => startEdit(partner)}
+                  onClick={() => startEdit(buggyman)}
                   className="p-1 hover:bg-gray-100 rounded"
                 >
                   <Edit2 className="w-4 h-4 text-gray-600" />
                 </button>
                 <button
-                  onClick={() => toggleActive(partner)}
+                  onClick={() => toggleActive(buggyman)}
                   className="p-1 hover:bg-gray-100 rounded"
                 >
-                  <Archive className={`w-4 h-4 ${partner.active ? 'text-gray-600' : 'text-red-600'}`} />
+                  <Archive className={`w-4 h-4 ${buggyman.active ? 'text-gray-600' : 'text-red-600'}`} />
                 </button>
               </div>
             </div>
 
-            <h3 className="font-semibold text-gray-800 mb-2">{partner.name}</h3>
+            <h3 className="font-semibold text-gray-800 mb-2">{buggyman.name}</h3>
 
-            {!partner.active && (
+            {!buggyman.active && (
               <div className="mt-2 text-sm text-red-600 font-medium">
                 Inativo
               </div>

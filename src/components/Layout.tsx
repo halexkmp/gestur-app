@@ -27,8 +27,8 @@ export default function Layout({ children, currentPage, onNavigate }: LayoutProp
   const menuItems = [
     { id: 'sales', label: 'Nova Venda', icon: ShoppingCart, adminOnly: false },
     { id: 'products', label: 'Produtos', icon: Package, adminOnly: true },
-    { id: 'bugueiros', label: 'Bugueiros', icon: Users, adminOnly: true },
-    { id: 'partners', label: 'Empresas Parceiras', icon: Building2, adminOnly: true },
+    { id: 'buggyman', label: 'Bugueiros', icon: Users, adminOnly: true },
+    { id: 'business', label: 'Empresas Parceiras', icon: Building2, adminOnly: true },
     { id: 'stock', label: 'Controle de Estoque', icon: Box, adminOnly: false },
     { id: 'reports', label: 'Relatórios', icon: TrendingUp, adminOnly: false },
     { id: 'users', label: 'Usuários', icon: UserCog, adminOnly: true },

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Plus, Minus, Trash2, DollarSign, Check, AlertCircle } from 'lucide-react';
-import { Product, Bugueiro, PartnerCompany, PaymentMethod, BugueiroClient, PartnerCustomerShift } from '../types';
+import { Product, Partner, PartnerType, PaymentMethod, PartnerCustomer, PartnerCustomerShift } from '../types';
 import { productService } from '../services/productService';
 import { partnerService } from '../services/partnerService';
 import { saleService } from '../services/saleService';
@@ -22,11 +22,11 @@ interface PaymentSplit {
 export default function Sales() {
   const { user } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
-  const [bugueiros, setBugueiros] = useState<Bugueiro[]>([]);
-  const [partners, setPartners] = useState<PartnerCompany[]>([]);
+  const [buggymans, setBuggymans] = useState<Partner[]>([]);
+  const [businesses, setBusinesses] = useState<Partner[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [selectedBugueiro, setSelectedBugueiro] = useState<string>('');
-  const [selectedPartner, setSelectedPartner] = useState<string>('');
+  const [selectedBuggyman, setSelectedBuggyman] = useState<string>('');
+  const [selectedBusiness, setSelectedBusiness] = useState<string>('');
   const [shift, setShift] = useState<ShiftType>('MORNING');
   const [clientCount, setClientCount] = useState(1);
   const [payments, setPayments] = useState<PaymentSplit[]>([
@@ -43,15 +43,13 @@ export default function Sales() {
 
   const loadData = async () => {
     try {
-      const [productsData, bugueirosData, partnersData] = await Promise.all([
+      const [productsData, partnersData] = await Promise.all([
         productService.getAll(),
-        partnerService.getByType('BUGGYMAN'),
-        partnerService.getByType('BUSINESS'),
+        partnerService.getAll()
       ]);
-
-      setProducts(productsData.filter(p => p.active));
-      setBugueiros(bugueirosData.filter(b => b.active));
-      setPartners(partnersData.filter(p => p.active));
+      setProducts(productsData.filter(product => product.active));
+      setBuggymans(partnersData.filter(buggyman => buggyman.active && buggyman.type === PartnerType.BUGGYMAN));
+      setBusinesses(partnersData.filter(business => business.active && business.type === PartnerType.BUSINESS));
     } catch (error) {
       console.error('General error in loadData:', error);
     }
@@ -150,12 +148,12 @@ export default function Sales() {
     const total = calculateTotal();
     const paymentTotal = calculatePaymentTotal();
 
-    if (!selectedPartner && Math.abs(total - paymentTotal) > 0.01) {
+    if (!selectedBusiness && Math.abs(total - paymentTotal) > 0.01) {
       setError(`Total dos pagamentos (R$ ${paymentTotal.toFixed(2)}) não corresponde ao total da venda (R$ ${total.toFixed(2)})`);
       return false;
     }
 
-    if (selectedBugueiro && clientCount < 1) {
+    if (selectedBuggyman && clientCount < 1) {
       setError('Informe a quantidade de clientes');
       return false;
     }
@@ -179,21 +177,21 @@ export default function Sales() {
 
     try {
       const saleData = {
-        partner_id: selectedPartner || selectedBugueiro || undefined,
+        partner_id: selectedBusiness || selectedBuggyman || undefined,
         items: cart.map(item => ({
           product_id: item.product.id,
           quantity: item.quantity,
           unit_price: item.default_price
         })),
-        payments: !selectedPartner ? payments
+        payments: !selectedBusiness ? payments
           .filter(p => parseFloat(p.amount) > 0)
           .map(p => ({
             payment_method: p.method,
             amount: parseFloat(p.amount)
           })) : [],
         observations: observations || undefined,
-        partner_customer_shift: selectedBugueiro ? shift : undefined,
-        partner_customer_date: selectedBugueiro ? new Date().toISOString().split('T')[0] : undefined,
+        partner_customer_shift: selectedBuggyman ? shift : undefined,
+        partner_customer_date: selectedBuggyman ? new Date().toISOString().split('T')[0] : undefined,
       };
 
       await saleService.create(saleData);
@@ -217,8 +215,8 @@ export default function Sales() {
 
   const resetForm = () => {
     setCart([]);
-    setSelectedBugueiro('');
-    setSelectedPartner('');
+    setSelectedBuggyman('');
+    setSelectedBusiness('');
     setShift('MORNING');
     setClientCount(1);
     setPayments([{ method: 'PIX', amount: '' }]);
@@ -359,21 +357,21 @@ export default function Sales() {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Bugueiro (opcional)
+                  Buggyman (opcional)
                 </label>
                 <select
-                  value={selectedBugueiro}
-                  onChange={(e) => setSelectedBugueiro(e.target.value)}
+                  value={selectedBuggyman}
+                  onChange={(e) => setSelectedBuggyman(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="">Nenhum</option>
-                  {bugueiros.map(b => (
+                  {buggymans.map(b => (
                     <option key={b.id} value={b.id}>{b.name}</option>
                   ))}
                 </select>
               </div>
 
-              {selectedBugueiro && (
+              {selectedBuggyman && (
                 <>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -409,15 +407,15 @@ export default function Sales() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Empresa Parceira (opcional)
+                  Negócio Parceiro (opcional)
                 </label>
                 <select
-                  value={selectedPartner}
-                  onChange={(e) => setSelectedPartner(e.target.value)}
+                  value={selectedBusiness}
+                  onChange={(e) => setSelectedBusiness(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="">Pagamento direto</option>
-                  {partners.map(p => (
+                  {businesses.map(p => (
                     <option key={p.id} value={p.id}>{p.name}</option>
                   ))}
                 </select>
@@ -438,7 +436,7 @@ export default function Sales() {
             </div>
           </div>
 
-          {!selectedPartner && (
+          {!selectedBusiness && (
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <h2 className="text-lg font-semibold text-gray-800 mb-4">Pagamento</h2>
 
