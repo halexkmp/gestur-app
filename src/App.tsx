@@ -12,7 +12,7 @@ import Users from './components/Users';
 import Audit from './components/Audit';
 
 function AppContent() {
-  const { profile, loading } = useAuth();
+  const { user, loading } = useAuth();
   const [currentPage, setCurrentPage] = useState('sales');
 
   if (loading) {
@@ -23,7 +23,7 @@ function AppContent() {
     );
   }
 
-  if (!profile) {
+  if (!user) {
     return <Login />;
   }
 

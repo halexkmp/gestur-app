@@ -10,7 +10,7 @@ type StockChangeWithRelations = StockChange & {
 };
 
 export default function StockControl() {
-  const { profile, isAdmin } = useAuth();
+  const { user, isAdmin } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [stockHistory, setStockHistory] = useState<StockChangeWithRelations[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<string>('');
@@ -31,7 +31,10 @@ export default function StockControl() {
     try {
       // Load products from API
       const productsData = await productService.getAll();
-      setProducts(productsData.filter(p => p.active).sort((a, b) => a.name.localeCompare(b.name)));
+      setProducts(productsData
+        .filter(p => p.active && p.type === 'CONSUMABLE')
+        .sort((a, b) => a.name.localeCompare(b.name))
+      );
 
       // History - The backend doesn't have a direct history endpoint in OpenAPI yet, 
       // but we'll leave this empty for now as requested.

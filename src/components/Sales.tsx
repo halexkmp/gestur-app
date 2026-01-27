@@ -20,7 +20,7 @@ interface PaymentSplit {
 }
 
 export default function Sales() {
-  const { profile } = useAuth();
+  const { user } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [bugueiros, setBugueiros] = useState<Bugueiro[]>([]);
   const [partners, setPartners] = useState<PartnerCompany[]>([]);
@@ -162,7 +162,7 @@ export default function Sales() {
 
     // Check stock
     for (const item of cart) {
-      if (item.product.stock_quantity < item.quantity) {
+      if (item.product.type === 'CONSUMABLE' && item.product.stock_quantity < item.quantity) {
         setError(`Estoque insuficiente para ${item.product.name}. Disponível: ${item.product.stock_quantity}`);
         return false;
       }
@@ -289,7 +289,7 @@ export default function Sales() {
                     <div className="text-sm text-gray-600 mt-1">
                       R$ {product.default_price.toFixed(2)}
                     </div>
-                    {product.has_stock && (
+                    {product.type === 'CONSUMABLE' && (
                       <div className="text-xs text-gray-500 mt-1">
                         Estoque: {product.stock_quantity}
                       </div>

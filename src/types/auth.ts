@@ -1,6 +1,6 @@
 export type UserRole = 'ADMIN' | 'OPERATOR';
 
-export interface Profile {
+export interface User {
   id: string;
   username: string;
   name: string;

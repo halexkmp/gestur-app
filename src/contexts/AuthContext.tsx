@@ -1,9 +1,9 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import { Profile, TokenResponse } from '../types';
+import { User, TokenResponse } from '../types';
 import { api } from '../lib/api';
 
 interface AuthContextType {
-  profile: Profile | null;
+  user: User | null;
   loading: boolean;
   signIn: (username: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -13,7 +13,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -27,12 +27,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const loadProfile = async () => {
     try {
-      const userData = await api.get<Profile>('/users/me');
-      setProfile(userData);
+      const userData = await api.get<User>('/users/me');
+      setUser(userData);
     } catch (error) {
-      console.error('Error loading profile:', error);
+      console.error('Error loading user:', error);
       localStorage.removeItem('auth_token');
-      setProfile(null);
+      setUser(null);
     } finally {
       setLoading(false);
     }
@@ -50,15 +50,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     localStorage.removeItem('auth_token');
-    setProfile(null);
+    setUser(null);
   };
 
   const value = {
-    profile,
+    user,
     loading,
     signIn,
     signOut,
-    isAdmin: profile?.role === 'ADMIN',
+    isAdmin: user?.role === 'ADMIN',
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

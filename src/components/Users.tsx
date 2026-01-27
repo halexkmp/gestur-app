@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react';
 import { Plus, Edit2, UserPlus, Shield, ShieldAlert, UserCheck, UserX } from 'lucide-react';
-import { Profile, UserRole } from '../types';
+import { User, UserRole } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { userService } from '../services/userService';
 
 export default function Users() {
   const { isAdmin } = useAuth();
-  const [users, setUsers] = useState<Profile[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [showForm, setShowForm] = useState(false);
-  const [editingUser, setEditingUser] = useState<Profile | null>(null);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -61,7 +61,7 @@ export default function Users() {
     }
   };
 
-  const toggleActive = async (user: Profile) => {
+  const toggleActive = async (user: User) => {
     // Note: Backend doesn't seem to have a specific 'active' field in update, 
     // but based on Profile type it exists.userService.update uses any.
     if (!confirm(`Tem certeza que deseja alterar o status deste usuário?`)) {
@@ -78,7 +78,7 @@ export default function Users() {
     }
   };
 
-  const startEdit = (user: Profile) => {
+  const startEdit = (user: User) => {
     setEditingUser(user);
     setFormData({
       name: user.name,

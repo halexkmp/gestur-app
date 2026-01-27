@@ -34,7 +34,7 @@ export default function Products() {
       name: formData.name,
       type: formData.type,
       default_price: parseFloat(formData.default_price),
-      stock_quantity: parseInt(formData.stock_quantity) || 0,
+      stock_quantity: formData.type === 'CONSUMABLE' ? (parseInt(formData.stock_quantity) || 0) : 0,
     };
 
     if (editingProduct) {
@@ -147,18 +147,20 @@ export default function Products() {
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Quantidade em Estoque
-                </label>
-                <input
-                  type="number"
-                  value={formData.stock_quantity}
-                  onChange={(e) => setFormData({ ...formData, stock_quantity: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  required
-                />
-              </div>
+              {formData.type === 'CONSUMABLE' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Quantidade em Estoque
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.stock_quantity}
+                    onChange={(e) => setFormData({ ...formData, stock_quantity: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    required
+                  />
+                </div>
+              )}
 
               <div className="flex gap-3 pt-4">
                 <button
@@ -214,13 +216,15 @@ export default function Products() {
               R$ {product.default_price?.toFixed(2)}
             </p>
 
-            <div className={`text-sm px-2 py-1 rounded ${
-              product.stock_quantity > 0
-                ? 'bg-green-100 text-green-700'
-                : 'bg-red-100 text-red-700'
-            }`}>
-              Estoque: {product.stock_quantity}
-            </div>
+            {product.type === 'CONSUMABLE' && (
+              <div className={`text-sm px-2 py-1 rounded ${
+                product.stock_quantity > 0
+                  ? 'bg-green-100 text-green-700'
+                  : 'bg-red-100 text-red-700'
+              }`}>
+                Estoque: {product.stock_quantity}
+              </div>
+            )}
 
             {!product.active && (
               <div className="mt-2 text-sm text-red-600 font-medium">

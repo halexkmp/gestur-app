@@ -1,19 +1,19 @@
 import { useState, useEffect } from 'react';
 import { Calendar, DollarSign, Users, TrendingUp, Download, Edit2, Eye, X } from 'lucide-react';
-import { Sale as BaseSale, SaleItem, SalePayment } from '../types';
+import { Sale as BaseSale, SaleItem, SalePayment, User } from '../types';
 import { saleService } from '../services/saleService';
 import { productService } from '../services/productService';
-import { partnerService } from '../services/partnerService';
 
 type Sale = BaseSale & {
   bugueiros: { name: string } | null;
   partner_companies: { name: string } | null;
-  users?: { name: string } | null;
+  user: User | null;
 };
 
 type SaleDetails = {
   sale: Sale;
   items: (SaleItem & { product_name: string })[];
+  user: User;
   payments: SalePayment[];
 };
 
@@ -435,7 +435,7 @@ export default function Reports() {
                           {sale.sale_code}
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-600">
-                          {sale.users?.name || '-'}
+                          {sale.user.name || '-'}
                         </td>
                         <td className="px-4 py-3 text-sm text-right font-semibold text-gray-800">
                           R$ {sale.total_amount.toFixed(2)}
@@ -533,7 +533,7 @@ export default function Reports() {
               <div className="grid sm:grid-cols-2 gap-4 mb-6">
                 <div className="bg-gray-50 p-3 rounded-lg">
                   <p className="text-xs text-gray-500 uppercase font-semibold">Vendedor</p>
-                  <p className="text-gray-800 font-medium">{viewingSale.sale.users?.name || '-'}</p>
+                  <p className="text-gray-800 font-medium">{viewingSale.sale.user.name || '-'}</p>
                 </div>
                 <div className="bg-gray-50 p-3 rounded-lg">
                   <p className="text-xs text-gray-500 uppercase font-semibold">Bugueiro</p>
@@ -546,9 +546,9 @@ export default function Reports() {
                 <div className="bg-gray-50 p-3 rounded-lg">
                   <p className="text-xs text-gray-500 uppercase font-semibold">Status</p>
                   <span className={`inline-block px-2 py-1 text-xs font-semibold rounded-full ${
-                    viewingSale.sale.status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                    viewingSale.sale.status === 'COMPLETED' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
                   }`}>
-                    {viewingSale.sale.status === 'completed' ? 'Concluída' : 'Cancelada'}
+                    {viewingSale.sale.status === 'COMPLETED' ? 'Concluída' : 'Cancelada'}
                   </span>
                 </div>
               </div>
