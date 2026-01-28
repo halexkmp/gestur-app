@@ -11,4 +11,6 @@ export const productService = {
   delete: (id: string) => api.delete(`/products/${id}`),
   updateStock: (data: UpdateStockRequest[]) =>
     api.post<StockResponse[]>('/products/stock/update', data),
+  getStockChanges: () =>
+    api.get<StockResponse[]>('/products/stock/changes'),
 };

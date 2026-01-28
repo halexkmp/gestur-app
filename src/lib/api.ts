@@ -2,7 +2,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 async function request<T>(
   path: string,
-  options: RequestInit = {}
+  options: RequestInit & { params?: Record<string, any> } = {}
 ): Promise<T> {
   const token = localStorage.getItem('auth_token');
   
@@ -14,7 +14,21 @@ async function request<T>(
     headers.set('Content-Type', 'application/json');
   }
 
-  const response = await fetch(`${API_URL}${path}`, {
+  let url = `${API_URL}${path}`;
+  if (options.params) {
+    const searchParams = new URLSearchParams();
+    Object.entries(options.params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        searchParams.append(key, value.toString());
+      }
+    });
+    const queryString = searchParams.toString();
+    if (queryString) {
+      url += (url.includes('?') ? '&' : '?') + queryString;
+    }
+  }
+
+  const response = await fetch(url, {
     ...options,
     headers,
   });
@@ -38,26 +52,26 @@ async function request<T>(
 }
 
 export const api = {
-  get: <T>(path: string, options?: RequestInit) =>
+  get: <T>(path: string, options?: RequestInit & { params?: Record<string, any> }) =>
     request<T>(path, { ...options, method: 'GET' }),
-  post: <T>(path: string, body: any, options?: RequestInit) =>
+  post: <T>(path: string, body: any, options?: RequestInit & { params?: Record<string, any> }) =>
     request<T>(path, {
       ...options,
       method: 'POST',
       body: body instanceof FormData ? body : JSON.stringify(body),
     }),
-  put: <T>(path: string, body: any, options?: RequestInit) =>
+  put: <T>(path: string, body: any, options?: RequestInit & { params?: Record<string, any> }) =>
     request<T>(path, {
       ...options,
       method: 'PUT',
       body: body instanceof FormData ? body : JSON.stringify(body),
     }),
-  patch: <T>(path: string, body: any, options?: RequestInit) =>
+  patch: <T>(path: string, body: any, options?: RequestInit & { params?: Record<string, any> }) =>
     request<T>(path, {
       ...options,
       method: 'PATCH',
       body: body instanceof FormData ? body : JSON.stringify(body),
     }),
-  delete: <T>(path: string, options?: RequestInit) =>
+  delete: <T>(path: string, options?: RequestInit & { params?: Record<string, any> }) =>
     request<T>(path, { ...options, method: 'DELETE' }),
 };

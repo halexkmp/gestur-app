@@ -1,3 +1,6 @@
+import { Product } from './product';
+import { User } from './auth';
+
 export type StockChangeType = 'IN' | 'OUT';
 
 export interface UpdateStockRequest {
@@ -9,12 +12,16 @@ export interface UpdateStockRequest {
 
 export interface StockResponse {
   id: string;
-  product_id: string;
   change_type: StockChangeType;
-  quantity_change: number;
-  sale_id: string | null;
-  user_id: string;
   created_at: string;
+  product: Pick<Product, 'id' | 'name' | 'stock_quantity'>;
+  quantity_change: number;
+  sale: {
+    id: string;
+    sale_code: string;
+  } | null;
+  user: Pick<User, 'id' | 'name'>;
+  reason?: string | null;
 }
 
 // Keep StockChange for backward compatibility if needed, 

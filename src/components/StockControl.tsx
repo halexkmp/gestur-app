@@ -4,15 +4,11 @@ import { Package, Edit, AlertCircle } from 'lucide-react';
 import { Product, StockChange } from '../types';
 import { productService } from '../services/productService';
 
-type StockChangeWithRelations = StockChange & {
-  products?: { name: string } | null;
-  profiles?: { full_name: string } | null;
-};
-
 export default function StockControl() {
   const { user, isAdmin } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
-  const [stockHistory, setStockHistory] = useState<StockChangeWithRelations[]>([]);
+  const [stockHistory, setStockHistory] = useState<StockChange[]>([]);
+  const [filterProductId, setFilterProductId] = useState<string | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<string>('');
   const [showModal, setShowModal] = useState(false);
   const [formData, setFormData] = useState({
@@ -28,6 +24,7 @@ export default function StockControl() {
   }, []);
 
   const loadData = async () => {
+    setLoading(true);
     try {
       // Load products from API
       const productsData = await productService.getAll();
@@ -36,11 +33,13 @@ export default function StockControl() {
         .sort((a, b) => a.name.localeCompare(b.name))
       );
 
-      // History - The backend doesn't have a direct history endpoint in OpenAPI yet, 
-      // but we'll leave this empty for now as requested.
-      setStockHistory([]);
+      // Load history
+      const historyData = await productService.getStockChanges();
+      setStockHistory(historyData);
     } catch (error) {
-      console.error('Error loading products:', error);
+      console.error('Error loading data:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -94,6 +93,10 @@ export default function StockControl() {
     IN: 'Entrada',
     OUT: 'Saída',
   };
+
+  const filteredHistory = filterProductId
+    ? stockHistory.filter(change => change.product.id === filterProductId)
+    : stockHistory;
 
   return (
     <div className="max-w-7xl mx-auto">
@@ -217,8 +220,16 @@ export default function StockControl() {
 
       <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {products.map(product => (
-          <div key={product.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <Package className="w-8 h-8 text-blue-600 mb-3" />
+          <button
+            key={product.id}
+            onClick={() => setFilterProductId(filterProductId === product.id ? null : product.id)}
+            className={`bg-white rounded-xl shadow-sm border p-6 text-left transition ${
+              filterProductId === product.id ? 'border-blue-500 ring-2 ring-blue-200' : 'border-gray-200 hover:border-blue-300'
+            }`}
+          >
+            <Package className={`w-8 h-8 mb-3 ${
+              filterProductId === product.id ? 'text-blue-600' : 'text-gray-400'
+            }`} />
             <h3 className="font-semibold text-gray-800 mb-1">{product.name}</h3>
             <p className={`text-2xl font-bold ${
               product.stock_quantity > 0 ? 'text-green-600' : 'text-red-600'
@@ -226,14 +237,29 @@ export default function StockControl() {
               {product.stock_quantity}
             </p>
             <p className="text-sm text-gray-600 mt-1">unidades</p>
-          </div>
+          </button>
         ))}
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <h2 className="text-lg font-semibold text-gray-800 mb-4">
-          Histórico de Alterações
-        </h2>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-lg font-semibold text-gray-800">
+            Histórico de Alterações
+            {filterProductId && (
+              <span className="ml-2 text-sm font-normal text-blue-600">
+                (Filtrado por: {products.find(p => p.id === filterProductId)?.name})
+              </span>
+            )}
+          </h2>
+          {filterProductId && (
+            <button
+              onClick={() => setFilterProductId(null)}
+              className="text-sm text-gray-500 hover:text-gray-700"
+            >
+              Limpar Filtro
+            </button>
+          )}
+        </div>
 
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -248,36 +274,44 @@ export default function StockControl() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {stockHistory.map(change => (
-                <tr key={change.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 text-sm text-gray-800">
-                    {new Date(change.created_at).toLocaleString('pt-BR')}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-800">
-                    {change.products?.name || '-'}
-                  </td>
-                  <td className="px-4 py-3 text-sm">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      change.change_type === 'IN' ? 'bg-green-100 text-green-700' :
-                      change.change_type === 'OUT' ? 'bg-red-100 text-red-700' :
-                      'bg-gray-100 text-gray-700'
-                    }`}>
-                      {changeTypeLabels[change.change_type]}
-                    </span>
-                  </td>
-                  <td className={`px-4 py-3 text-sm text-right font-semibold ${
-                    change.quantity_change > 0 ? 'text-green-600' : 'text-red-600'
-                  }`}>
-                    {change.quantity_change > 0 ? '+' : ''}{change.quantity_change}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-600">
-                    {change.reason || '-'}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-600">
-                    {change.profiles?.full_name || '-'}
+              {filteredHistory.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
+                    Nenhum registro encontrado
                   </td>
                 </tr>
-              ))}
+              ) : (
+                filteredHistory.map(change => (
+                  <tr key={change.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 text-sm text-gray-800">
+                      {new Date(change.created_at).toLocaleString('pt-BR')}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-800">
+                      {change.product.name}
+                    </td>
+                    <td className="px-4 py-3 text-sm">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        change.change_type === 'IN' ? 'bg-green-100 text-green-700' :
+                        change.change_type === 'OUT' ? 'bg-red-100 text-red-700' :
+                        'bg-gray-100 text-gray-700'
+                      }`}>
+                        {changeTypeLabels[change.change_type]}
+                      </span>
+                    </td>
+                    <td className={`px-4 py-3 text-sm text-right font-semibold ${
+                      change.quantity_change > 0 ? 'text-green-600' : 'text-red-600'
+                    }`}>
+                      {change.quantity_change > 0 ? '+' : ''}{change.quantity_change}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600">
+                      {change.reason || (change.sale ? `Venda: ${change.sale.sale_code}` : '-')}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600">
+                      {change.user.name}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
