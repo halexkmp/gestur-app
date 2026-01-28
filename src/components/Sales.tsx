@@ -190,8 +190,8 @@ export default function Sales() {
             amount: parseFloat(p.amount)
           })) : [],
         observations: observations || undefined,
+        partner_customer_quantity: selectedBuggyman ? clientCount : undefined,
         partner_customer_shift: selectedBuggyman ? shift : undefined,
-        partner_customer_date: selectedBuggyman ? new Date().toISOString().split('T')[0] : undefined,
       };
 
       await saleService.create(saleData);
@@ -237,9 +237,9 @@ export default function Sales() {
   }, {} as Record<string, number>);
 
   const paymentMethodLabels: Record<string, string> = {
-    pix: 'Pix',
-    dinheiro: 'Dinheiro',
-    cartao: 'Cartão'
+    PIX: 'Pix',
+    CURRENCY: 'Dinheiro',
+    CREDIT_CARD: 'Cartão'
   };
 
   return (
@@ -357,7 +357,7 @@ export default function Sales() {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Buggyman (opcional)
+                  Bugueiro (opcional)
                 </label>
                 <select
                   value={selectedBuggyman}
@@ -382,8 +382,8 @@ export default function Sales() {
                       onChange={(e) => setShift(e.target.value as ShiftType)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
-                      <option value="manha">Manhã</option>
-                      <option value="tarde">Tarde</option>
+                      <option value="MORNING">Manhã</option>
+                      <option value="AFTERNOON">Tarde</option>
                     </select>
                   </div>
 
@@ -407,7 +407,7 @@ export default function Sales() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Negócio Parceiro (opcional)
+                  Empresa Parceira (opcional)
                 </label>
                 <select
                   value={selectedBusiness}
@@ -448,9 +448,9 @@ export default function Sales() {
                       onChange={(e) => updatePayment(index, 'method', e.target.value)}
                       className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
-                      <option value="pix">Pix</option>
-                      <option value="dinheiro">Dinheiro</option>
-                      <option value="cartao">Cartão</option>
+                      <option value="PIX">Pix</option>
+                      <option value="CURRENCY">Dinheiro</option>
+                      <option value="CREDIT_CARD">Cartão</option>
                     </select>
                     <input
                       type="number"

@@ -3,6 +3,8 @@ import { Calendar, DollarSign, Users, TrendingUp, Download, Edit2, Eye, X } from
 import { Sale as BaseSale, SaleItem, SalePayment, User } from '../types';
 import { saleService } from '../services/saleService';
 import { productService } from '../services/productService';
+import { partnerService } from '../services/partnerService';
+import { PartnerCustomer } from '../types';
 
 type Sale = BaseSale & {
   bugueiros: { name: string } | null;
@@ -134,8 +136,44 @@ export default function Reports() {
         console.error('Error loading product names:', error);
       }
 
-      // Comissões (não implementado no backend ainda, manter vazio por enquanto)
-      setCommissions([]);
+      // Comissões
+      if (salesData.length > 0) {
+        try {
+          const saleIds = salesData.map(s => s.id);
+          const [partnerCustomers, allPartners] = await Promise.all([
+            partnerService.getPartnerCustomerReport(saleIds),
+            partnerService.getAll()
+          ]);
+
+          const commissionMap: Record<string, BuggymanCommission> = {};
+
+          partnerCustomers.forEach(pc => {
+            const partner = allPartners.find(p => p.id === pc.partner_id);
+            if (!partner) return;
+
+            if (!commissionMap[pc.partner_id]) {
+              commissionMap[pc.partner_id] = {
+                buggyman_id: pc.partner_id,
+                buggyman_name: partner.name,
+                pix_key: partner.pix_key,
+                client_count: 0,
+                commission: 0
+              };
+            }
+
+            commissionMap[pc.partner_id].client_count += pc.quantity;
+            // Based on Sales.tsx: commission is R$ 10 per client
+            commissionMap[pc.partner_id].commission += pc.quantity * 10;
+          });
+
+          setCommissions(Object.values(commissionMap));
+        } catch (error) {
+          console.error('Error loading commissions:', error);
+          setCommissions([]);
+        }
+      } else {
+        setCommissions([]);
+      }
 
     } catch (error) {
       console.error('Error loading report:', error);

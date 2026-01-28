@@ -6,6 +6,8 @@ export interface Sale {
   sale_code: string;
   total_amount: number;
   partner_id: string | null;
+  partner_customer_quantity: number | null;
+  partner_customer_shift: string | null
   user_id: string;
   status: SaleStatus;
   notes: string | null;

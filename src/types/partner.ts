@@ -9,7 +9,7 @@ export interface PartnerCustomer {
   id: string;
   partner_id: string;
   sale_id: string;
-  client_date: string;
+  quantity: number;
   shift: PartnerCustomerShift;
 }
 
