@@ -73,15 +73,15 @@ export default function Buggyman() {
     <div className="max-w-6xl mx-auto">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-800">Buggymans</h1>
-          <p className="text-gray-600 mt-1">Gerencie os bugueiros e suas informações</p>
+          <h1 className="text-3xl font-bold text-gray-800">Buggyman</h1>
+          <p className="text-gray-600 mt-1">Gerencie os buggymen e suas informações</p>
         </div>
         <button
           onClick={() => setShowForm(true)}
           className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition flex items-center gap-2"
         >
           <Plus className="w-5 h-5" />
-          Novo Bugueiro
+          Novo Buggyman
         </button>
       </div>
 

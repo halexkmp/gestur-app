@@ -4,11 +4,10 @@ import { Sale as BaseSale, SaleItem, SalePayment, User } from '../types';
 import { saleService } from '../services/saleService';
 import { productService } from '../services/productService';
 import { partnerService } from '../services/partnerService';
-import { PartnerCustomer } from '../types';
 
 type Sale = BaseSale & {
-  bugueiros: { name: string } | null;
-  partner_companies: { name: string } | null;
+  buggyman: { name: string } | null;
+  business: { name: string } | null;
   user: User | null;
 };
 
@@ -162,7 +161,6 @@ export default function Reports() {
             }
 
             commissionMap[pc.partner_id].client_count += pc.quantity;
-            // Based on Sales.tsx: commission is R$ 10 per client
             commissionMap[pc.partner_id].commission += pc.quantity * 10;
           });
 
@@ -200,18 +198,32 @@ export default function Reports() {
   const handleViewDetails = async (sale: Sale) => {
     setLoadingDetails(true);
     try {
-      const items = await Promise.all(sale.items.map(async (item) => {
-        const products = await productService.getAll();
-        const product = products.find(p => p.id === item.product_id);
-        const productName = product ? product.name : 'Produto Removido';
-        return {
-          ...item,
-          product_name: productName
-        } as SaleItem & { product_name: string };
-      }));
+      const [items, partner] = await Promise.all([
+        Promise.all(sale.items.map(async (item) => {
+          const products = await productService.getAll();
+          const product = products.find(p => p.id === item.product_id);
+          const productName = product ? product.name : 'Produto Removido';
+          return {
+            ...item,
+            product_name: productName
+          } as SaleItem & { product_name: string };
+        })),
+        sale.partner_id ? partnerService.getById(sale.partner_id) : Promise.resolve(null)
+      ]);
+
+      const updatedSale = { ...sale };
+      if (partner) {
+        if (partner.type === 'BUGGYMAN') {
+          updatedSale.buggyman = { name: partner.name };
+          updatedSale.business = null;
+        } else {
+          updatedSale.business = { name: partner.name };
+          updatedSale.buggyman = null;
+        }
+      }
 
       setViewingSale({
-        sale,
+        sale: updatedSale,
         items,
         payments: sale.payments
       });
@@ -574,12 +586,12 @@ export default function Reports() {
                   <p className="text-gray-800 font-medium">{viewingSale.sale.user.name || '-'}</p>
                 </div>
                 <div className="bg-gray-50 p-3 rounded-lg">
-                  <p className="text-xs text-gray-500 uppercase font-semibold">Buggyman</p>
-                  <p className="text-gray-800 font-medium">{viewingSale.sale.bugueiros?.name || '-'}</p>
+                  <p className="text-xs text-gray-500 uppercase font-semibold">Bugueiro</p>
+                  <p className="text-gray-800 font-medium">{viewingSale.sale.buggyman?.name || '-'}</p>
                 </div>
                 <div className="bg-gray-50 p-3 rounded-lg">
-                  <p className="text-xs text-gray-500 uppercase font-semibold">Negócio Parceiro</p>
-                  <p className="text-gray-800 font-medium">{viewingSale.sale.partner_companies?.name || '-'}</p>
+                  <p className="text-xs text-gray-500 uppercase font-semibold">Empresa Parceira</p>
+                  <p className="text-gray-800 font-medium">{viewingSale.sale.business?.name || '-'}</p>
                 </div>
                 <div className="bg-gray-50 p-3 rounded-lg">
                   <p className="text-xs text-gray-500 uppercase font-semibold">Status</p>
