@@ -30,7 +30,7 @@ export default function Login() {
           <div className="bg-blue-600 p-4 rounded-full mb-4">
             <Lock className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-800">Sistema Tirolesa</h1>
+          <h1 className="text-2xl font-bold text-gray-800">GesTur</h1>
           <p className="text-gray-600 mt-2">Entre com suas credenciais</p>
         </div>
 
