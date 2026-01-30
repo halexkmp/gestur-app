@@ -71,7 +71,7 @@ export default function Users() {
     try {
       // In the absence of an explicit toggle, we assume update can handle it if the backend supports it.
       // Or we just don't provide it if the backend doesn't support 'active' in patch.
-      // userService.update(user.id, { active: !user.active });
+      await userService.update(user.id, {active: !user.active});
       loadUsers();
     } catch (error) {
       console.error('Error toggling user status:', error);
