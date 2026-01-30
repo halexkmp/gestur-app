@@ -55,7 +55,7 @@ export default function Layout({ children, currentPage, onNavigate }: LayoutProp
         sidebarOpen ? 'translate-x-0' : '-translate-x-full'
       } lg:translate-x-0 w-64`}>
         <div className="p-6 border-b border-gray-200">
-          <h1 className="text-2xl font-bold text-gray-800">BeachDunas</h1>
+          <h1 className="text-2xl font-bold text-gray-800">BeachDunnas</h1>
           <p className="text-sm text-gray-600 mt-1">{user.name}</p>
           <span className={`inline-block mt-2 px-2 py-1 text-xs rounded-full ${
             isAdmin ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'
