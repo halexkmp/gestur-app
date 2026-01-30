@@ -1,25 +1,17 @@
 import { useState, useEffect } from 'react';
-import { db } from '../lib/firebase';
-import { 
-  collection, 
-  query, 
-  where, 
-  orderBy, 
-  getDocs, 
-  serverTimestamp, 
-  writeBatch, 
-  doc 
-} from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
 import { Plus, Minus, Trash2, DollarSign, Check, AlertCircle } from 'lucide-react';
-import { Product, Bugueiro, PartnerCompany, PaymentMethod, BugueiroClient } from '../types';
+import { Product, Partner, PartnerType, PaymentMethod, PartnerCustomer, PartnerCustomerShift } from '../types';
+import { productService } from '../services/productService';
+import { partnerService } from '../services/partnerService';
+import { saleService } from '../services/saleService';
 
-type ShiftType = BugueiroClient['shift'];
+type ShiftType = PartnerCustomerShift;
 
 interface CartItem {
   product: Product;
   quantity: number;
-  price: number;
+  default_price: number;
 }
 
 interface PaymentSplit {
@@ -28,17 +20,17 @@ interface PaymentSplit {
 }
 
 export default function Sales() {
-  const { profile } = useAuth();
+  const { user } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
-  const [bugueiros, setBugueiros] = useState<Bugueiro[]>([]);
-  const [partners, setPartners] = useState<PartnerCompany[]>([]);
+  const [buggymans, setBuggymans] = useState<Partner[]>([]);
+  const [businesses, setBusinesses] = useState<Partner[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [selectedBugueiro, setSelectedBugueiro] = useState<string>('');
-  const [selectedPartner, setSelectedPartner] = useState<string>('');
-  const [shift, setShift] = useState<ShiftType>('manha');
+  const [selectedBuggyman, setSelectedBuggyman] = useState<string>('');
+  const [selectedBusiness, setSelectedBusiness] = useState<string>('');
+  const [shift, setShift] = useState<ShiftType>('MORNING');
   const [clientCount, setClientCount] = useState(1);
   const [payments, setPayments] = useState<PaymentSplit[]>([
-    { method: 'pix', amount: '' }
+    { method: 'PIX', amount: '' }
   ]);
   const [observations, setObservations] = useState('');
   const [loading, setLoading] = useState(false);
@@ -51,30 +43,13 @@ export default function Sales() {
 
   const loadData = async () => {
     try {
-      const fetchCollection = async (collName: string) => {
-        try {
-          let q = query(collection(db, collName), where('active', '==', true), orderBy('name'));
-          const snap = await getDocs(q);
-          return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        } catch (error) {
-          console.error(`Error loading ${collName} with filters/orderBy:`, error);
-          const snap = await getDocs(collection(db, collName));
-          return snap.docs
-            .map(doc => ({ id: doc.id, ...doc.data() } as any))
-            .filter(item => item.active === true)
-            .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-        }
-      };
-
-      const [productsData, bugueirosData, partnersData] = await Promise.all([
-        fetchCollection('products'),
-        fetchCollection('bugueiros'),
-        fetchCollection('partner_companies')
+      const [productsData, partnersData] = await Promise.all([
+        productService.getAll(),
+        partnerService.getAll()
       ]);
-
-      setProducts(productsData as Product[]);
-      setBugueiros(bugueirosData as Bugueiro[]);
-      setPartners(partnersData as PartnerCompany[]);
+      setProducts(productsData.filter(product => product.active));
+      setBuggymans(partnersData.filter(buggyman => buggyman.active && buggyman.type === PartnerType.BUGGYMAN));
+      setBusinesses(partnersData.filter(business => business.active && business.type === PartnerType.BUSINESS));
     } catch (error) {
       console.error('General error in loadData:', error);
     }
@@ -90,14 +65,14 @@ export default function Sales() {
           : item
       );
     } else {
-      newCart = [...cart, { product, quantity: 1, price: product.default_price }];
+      newCart = [...cart, { product, quantity: 1, default_price: product.default_price }];
     }
     setCart(newCart);
     
     // Automatically update PIX payment if it's the only one or if we're simplifying
-    const newTotal = newCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    if (payments.length === 1 && payments[0].method === 'pix') {
-      setPayments([{ method: 'pix', amount: newTotal.toString() }]);
+    const newTotal = newCart.reduce((sum, item) => sum + (item.default_price * item.quantity), 0);
+    if (payments.length === 1 && payments[0].method === 'PIX') {
+      setPayments([{ method: 'PIX', amount: newTotal.toString() }]);
     }
   };
 
@@ -109,24 +84,24 @@ export default function Sales() {
     ).filter(item => item.quantity > 0);
     setCart(newCart);
 
-    const newTotal = newCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    if (payments.length === 1 && payments[0].method === 'pix') {
-      setPayments([{ method: 'pix', amount: newTotal.toString() }]);
+    const newTotal = newCart.reduce((sum, item) => sum + (item.default_price * item.quantity), 0);
+    if (payments.length === 1 && payments[0].method === 'PIX') {
+      setPayments([{ method: 'PIX', amount: newTotal.toString() }]);
     }
   };
 
   const updatePrice = (productId: string, newPrice: string) => {
-    const price = parseFloat(newPrice) || 0;
+    const default_price = parseFloat(newPrice) || 0;
     const newCart = cart.map(item =>
       item.product.id === productId
-        ? { ...item, price }
+        ? { ...item, default_price }
         : item
     );
     setCart(newCart);
 
-    const newTotal = newCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    if (payments.length === 1 && payments[0].method === 'pix') {
-      setPayments([{ method: 'pix', amount: newTotal.toString() }]);
+    const newTotal = newCart.reduce((sum, item) => sum + (item.default_price * item.quantity), 0);
+    if (payments.length === 1 && payments[0].method === 'PIX') {
+      setPayments([{ method: 'PIX', amount: newTotal.toString() }]);
     }
   };
 
@@ -134,14 +109,14 @@ export default function Sales() {
     const newCart = cart.filter(item => item.product.id !== productId);
     setCart(newCart);
 
-    const newTotal = newCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    if (payments.length === 1 && payments[0].method === 'pix') {
-      setPayments([{ method: 'pix', amount: newTotal.toString() }]);
+    const newTotal = newCart.reduce((sum, item) => sum + (item.default_price * item.quantity), 0);
+    if (payments.length === 1 && payments[0].method === 'PIX') {
+      setPayments([{ method: 'PIX', amount: newTotal.toString() }]);
     }
   };
 
   const calculateTotal = () => {
-    return cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    return cart.reduce((sum, item) => sum + (item.default_price * item.quantity), 0);
   };
 
   const calculatePaymentTotal = () => {
@@ -149,7 +124,7 @@ export default function Sales() {
   };
 
   const addPaymentMethod = () => {
-    setPayments([...payments, { method: 'pix', amount: '' }]);
+    setPayments([...payments, { method: 'PIX', amount: '' }]);
   };
 
   const updatePayment = (index: number, field: 'method' | 'amount', value: string) => {
@@ -173,19 +148,19 @@ export default function Sales() {
     const total = calculateTotal();
     const paymentTotal = calculatePaymentTotal();
 
-    if (!selectedPartner && Math.abs(total - paymentTotal) > 0.01) {
+    if (!selectedBusiness && Math.abs(total - paymentTotal) > 0.01) {
       setError(`Total dos pagamentos (R$ ${paymentTotal.toFixed(2)}) não corresponde ao total da venda (R$ ${total.toFixed(2)})`);
       return false;
     }
 
-    if (selectedBugueiro && clientCount < 1) {
+    if (selectedBuggyman && clientCount < 1) {
       setError('Informe a quantidade de clientes');
       return false;
     }
 
-    // Check stock for items with has_stock: true
+    // Check stock
     for (const item of cart) {
-      if (item.product.has_stock && item.product.stock_quantity < item.quantity) {
+      if (item.product.type === 'CONSUMABLE' && item.product.stock_quantity < item.quantity) {
         setError(`Estoque insuficiente para ${item.product.name}. Disponível: ${item.product.stock_quantity}`);
         return false;
       }
@@ -201,93 +176,28 @@ export default function Sales() {
     setError('');
 
     try {
-      const total = calculateTotal();
-      const batch = writeBatch(db);
-
-      // Create sale
-      const saleRef = doc(collection(db, 'sales'));
-      batch.set(saleRef, {
-        total_amount: total,
-        bugueiro_id: selectedBugueiro || null,
-        partner_company_id: selectedPartner || null,
-        user_id: profile!.id,
-        status: 'completed',
-        observations: observations || null,
-        created_at: serverTimestamp()
-      });
-
-      // Create sale items and update stock
-      cart.forEach(item => {
-        const itemRef = doc(collection(db, 'sale_items'));
-        batch.set(itemRef, {
-          sale_id: saleRef.id,
+      const saleData = {
+        partner_id: selectedBusiness || selectedBuggyman || undefined,
+        items: cart.map(item => ({
           product_id: item.product.id,
           quantity: item.quantity,
-          unit_price: item.price,
-          total_price: item.price * item.quantity
-        });
-
-        // Decrement stock if applicable
-        if (item.product.has_stock) {
-          const productRef = doc(db, 'products', item.product.id);
-          batch.update(productRef, {
-            stock_quantity: item.product.stock_quantity - item.quantity,
-            updated_at: serverTimestamp()
-          });
-
-          // Log stock change
-          const stockChangeRef = doc(collection(db, 'stock_changes'));
-          batch.set(stockChangeRef, {
-            product_id: item.product.id,
-            change_type: 'saida',
-            quantity_change: -item.quantity,
-            reason: `Venda ${saleRef.id}`,
-            user_id: profile!.id,
-            created_at: serverTimestamp()
-          });
-        }
-      });
-
-      // Create payments
-      if (!selectedPartner) {
-        payments
+          unit_price: item.default_price
+        })),
+        payments: !selectedBusiness ? payments
           .filter(p => parseFloat(p.amount) > 0)
-          .forEach(p => {
-            const paymentRef = doc(collection(db, 'sale_payments'));
-            batch.set(paymentRef, {
-              sale_id: saleRef.id,
-              payment_method: p.method,
-              amount: parseFloat(p.amount)
-            });
-          });
-      }
+          .map(p => ({
+            payment_method: p.method,
+            amount: parseFloat(p.amount)
+          })) : [],
+        observations: observations || undefined,
+        partner_customer_quantity: selectedBuggyman ? clientCount : undefined,
+        partner_customer_shift: selectedBuggyman ? shift : undefined,
+      };
 
-      // Create bugueiro clients
-      if (selectedBugueiro) {
-        for (let i = 0; i < clientCount; i++) {
-          const clientRef = doc(collection(db, 'bugueiro_clients'));
-          batch.set(clientRef, {
-            bugueiro_id: selectedBugueiro,
-            sale_id: saleRef.id,
-            shift,
-            client_date: serverTimestamp()
-          });
-        }
-      }
+      await saleService.create(saleData);
 
-      await batch.commit();
-
-      // Update local products state to reflect new stock
-      setProducts(prevProducts => prevProducts.map(p => {
-        const cartItem = cart.find(item => item.product.id === p.id);
-        if (cartItem && p.has_stock) {
-          return {
-            ...p,
-            stock_quantity: p.stock_quantity - cartItem.quantity
-          };
-        }
-        return p;
-      }));
+      // Refresh data to get updated stock quantities
+      await loadData();
 
       setSuccess(true);
       setTimeout(() => {
@@ -295,9 +205,9 @@ export default function Sales() {
         setSuccess(false);
       }, 2000);
 
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error completing sale:', err);
-      setError('Erro ao finalizar venda. Tente novamente.');
+      setError(err.response?.data?.message || 'Erro ao finalizar venda. Tente novamente.');
     } finally {
       setLoading(false);
     }
@@ -305,11 +215,11 @@ export default function Sales() {
 
   const resetForm = () => {
     setCart([]);
-    setSelectedBugueiro('');
-    setSelectedPartner('');
-    setShift('manha');
+    setSelectedBuggyman('');
+    setSelectedBusiness('');
+    setShift('MORNING');
     setClientCount(1);
-    setPayments([{ method: 'pix', amount: '' }]);
+    setPayments([{ method: 'PIX', amount: '' }]);
     setObservations('');
     setError('');
   };
@@ -327,9 +237,9 @@ export default function Sales() {
   }, {} as Record<string, number>);
 
   const paymentMethodLabels: Record<string, string> = {
-    pix: 'Pix',
-    dinheiro: 'Dinheiro',
-    cartao: 'Cartão'
+    PIX: 'Pix',
+    CURRENCY: 'Dinheiro',
+    CREDIT_CARD: 'Cartão'
   };
 
   return (
@@ -377,7 +287,7 @@ export default function Sales() {
                     <div className="text-sm text-gray-600 mt-1">
                       R$ {product.default_price.toFixed(2)}
                     </div>
-                    {product.has_stock && (
+                    {product.type === 'CONSUMABLE' && (
                       <div className="text-xs text-gray-500 mt-1">
                         Estoque: {product.stock_quantity}
                       </div>
@@ -416,7 +326,7 @@ export default function Sales() {
                         <input
                           type="number"
                           step="0.01"
-                          value={item.price}
+                          value={item.default_price}
                           onChange={(e) => updatePrice(item.product.id, e.target.value)}
                           className="w-24 px-2 py-1 border border-gray-300 rounded"
                         />
@@ -424,7 +334,7 @@ export default function Sales() {
                     </div>
                     <div className="text-right">
                       <div className="font-semibold text-gray-800">
-                        R$ {(item.price * item.quantity).toFixed(2)}
+                        R$ {(item.default_price * item.quantity).toFixed(2)}
                       </div>
                       <button
                         onClick={() => removeFromCart(item.product.id)}
@@ -450,18 +360,18 @@ export default function Sales() {
                   Bugueiro (opcional)
                 </label>
                 <select
-                  value={selectedBugueiro}
-                  onChange={(e) => setSelectedBugueiro(e.target.value)}
+                  value={selectedBuggyman}
+                  onChange={(e) => setSelectedBuggyman(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="">Nenhum</option>
-                  {bugueiros.map(b => (
+                  {buggymans.map(b => (
                     <option key={b.id} value={b.id}>{b.name}</option>
                   ))}
                 </select>
               </div>
 
-              {selectedBugueiro && (
+              {selectedBuggyman && (
                 <>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -472,8 +382,8 @@ export default function Sales() {
                       onChange={(e) => setShift(e.target.value as ShiftType)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
-                      <option value="manha">Manhã</option>
-                      <option value="tarde">Tarde</option>
+                      <option value="MORNING">Manhã</option>
+                      <option value="AFTERNOON">Tarde</option>
                     </select>
                   </div>
 
@@ -500,12 +410,12 @@ export default function Sales() {
                   Empresa Parceira (opcional)
                 </label>
                 <select
-                  value={selectedPartner}
-                  onChange={(e) => setSelectedPartner(e.target.value)}
+                  value={selectedBusiness}
+                  onChange={(e) => setSelectedBusiness(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="">Pagamento direto</option>
-                  {partners.map(p => (
+                  {businesses.map(p => (
                     <option key={p.id} value={p.id}>{p.name}</option>
                   ))}
                 </select>
@@ -526,7 +436,7 @@ export default function Sales() {
             </div>
           </div>
 
-          {!selectedPartner && (
+          {!selectedBusiness && (
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <h2 className="text-lg font-semibold text-gray-800 mb-4">Pagamento</h2>
 
@@ -538,9 +448,9 @@ export default function Sales() {
                       onChange={(e) => updatePayment(index, 'method', e.target.value)}
                       className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
-                      <option value="pix">Pix</option>
-                      <option value="dinheiro">Dinheiro</option>
-                      <option value="cartao">Cartão</option>
+                      <option value="PIX">Pix</option>
+                      <option value="CURRENCY">Dinheiro</option>
+                      <option value="CREDIT_CARD">Cartão</option>
                     </select>
                     <input
                       type="number"

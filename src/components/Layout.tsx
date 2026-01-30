@@ -21,14 +21,14 @@ interface LayoutProps {
 }
 
 export default function Layout({ children, currentPage, onNavigate }: LayoutProps) {
-  const { profile, signOut, isAdmin } = useAuth();
+  const { user, signOut, isAdmin } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const menuItems = [
     { id: 'sales', label: 'Nova Venda', icon: ShoppingCart, adminOnly: false },
     { id: 'products', label: 'Produtos', icon: Package, adminOnly: true },
-    { id: 'bugueiros', label: 'Bugueiros', icon: Users, adminOnly: true },
-    { id: 'partners', label: 'Empresas Parceiras', icon: Building2, adminOnly: true },
+    { id: 'buggyman', label: 'Bugueiros', icon: Users, adminOnly: true },
+    { id: 'business', label: 'Empresas Parceiras', icon: Building2, adminOnly: true },
     { id: 'stock', label: 'Controle de Estoque', icon: Box, adminOnly: false },
     { id: 'reports', label: 'Relatórios', icon: TrendingUp, adminOnly: false },
     { id: 'users', label: 'Usuários', icon: UserCog, adminOnly: true },
@@ -41,7 +41,7 @@ export default function Layout({ children, currentPage, onNavigate }: LayoutProp
     <div className="min-h-screen bg-gray-50">
       <div className="lg:hidden fixed top-0 left-0 right-0 bg-white border-b border-gray-200 z-40 px-4 py-3">
         <div className="flex items-center justify-between">
-          <h1 className="text-xl font-bold text-gray-800">Sistema Tirolesa</h1>
+          <h1 className="text-xl font-bold text-gray-800">Gestur</h1>
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
             className="p-2 hover:bg-gray-100 rounded-lg transition"
@@ -55,8 +55,8 @@ export default function Layout({ children, currentPage, onNavigate }: LayoutProp
         sidebarOpen ? 'translate-x-0' : '-translate-x-full'
       } lg:translate-x-0 w-64`}>
         <div className="p-6 border-b border-gray-200">
-          <h1 className="text-2xl font-bold text-gray-800">Tirolesa</h1>
-          <p className="text-sm text-gray-600 mt-1">{profile?.full_name}</p>
+          <h1 className="text-2xl font-bold text-gray-800">BeachDunas</h1>
+          <p className="text-sm text-gray-600 mt-1">{user.name}</p>
           <span className={`inline-block mt-2 px-2 py-1 text-xs rounded-full ${
             isAdmin ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'
           }`}>

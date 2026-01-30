@@ -1,17 +1,7 @@
 import { useState, useEffect } from 'react';
-import { db } from '../lib/firebase';
-import { 
-  collection, 
-  query, 
-  orderBy, 
-  getDocs, 
-  addDoc, 
-  updateDoc, 
-  doc, 
-  serverTimestamp 
-} from 'firebase/firestore';
 import { Plus, Edit2, Archive, Package } from 'lucide-react';
 import { Product, ProductType } from '../types';
+import { productService } from '../services/productService';
 
 export default function Products() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -19,9 +9,8 @@ export default function Products() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [formData, setFormData] = useState({
     name: '',
-    type: 'bebida' as ProductType,
+    type: 'CONSUMABLE' as ProductType,
     default_price: '',
-    has_stock: false,
     stock_quantity: '0'
   });
 
@@ -31,27 +20,10 @@ export default function Products() {
 
   const loadProducts = async () => {
     try {
-      const q = query(collection(db, 'products'), orderBy('name'));
-      const querySnapshot = await getDocs(q);
-      const data = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Product[];
+      const data = await productService.getAll();
       setProducts(data);
     } catch (error) {
       console.error('Error loading products:', error);
-      // Fallback to query without orderBy if it fails (might be missing index)
-      try {
-        const q = query(collection(db, 'products'));
-        const querySnapshot = await getDocs(q);
-        const data = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })) as Product[];
-        setProducts(data);
-      } catch (innerError) {
-        console.error('Fallback error loading products:', innerError);
-      }
     }
   };
 
@@ -62,19 +34,15 @@ export default function Products() {
       name: formData.name,
       type: formData.type,
       default_price: parseFloat(formData.default_price),
-      has_stock: formData.has_stock,
-      stock_quantity: parseInt(formData.stock_quantity) || 0,
-      updated_at: serverTimestamp()
+      stock_quantity: formData.type === 'CONSUMABLE' ? (parseInt(formData.stock_quantity) || 0) : 0,
     };
 
     if (editingProduct) {
-      const productRef = doc(db, 'products', editingProduct.id);
-      await updateDoc(productRef, productData);
+      await productService.update(editingProduct.id, productData);
     } else {
-      await addDoc(collection(db, 'products'), {
+      await productService.create({
         ...productData,
         active: true,
-        created_at: serverTimestamp()
       });
     }
 
@@ -83,8 +51,7 @@ export default function Products() {
   };
 
   const toggleActive = async (product: Product) => {
-    const productRef = doc(db, 'products', product.id);
-    await updateDoc(productRef, { active: !product.active });
+    await productService.update(product.id, { active: !product.active });
     loadProducts();
   };
 
@@ -94,7 +61,6 @@ export default function Products() {
       name: product.name,
       type: product.type,
       default_price: product.default_price.toString(),
-      has_stock: product.has_stock,
       stock_quantity: product.stock_quantity.toString()
     });
     setShowForm(true);
@@ -103,9 +69,8 @@ export default function Products() {
   const resetForm = () => {
     setFormData({
       name: '',
-      type: 'bebida',
+      type: 'SERVICE',
       default_price: '',
-      has_stock: false,
       stock_quantity: '0'
     });
     setEditingProduct(null);
@@ -113,10 +78,8 @@ export default function Products() {
   };
 
   const productTypeLabels: Record<ProductType, string> = {
-    bebida: 'Bebida',
-    tirolesa: 'Tirolesa',
-    combo_foto: 'Combo Foto',
-    combo_drone: 'Combo Drone'
+      CONSUMABLE: 'Consumível',
+    SERVICE: 'Serviço',
   };
 
   return (
@@ -165,10 +128,8 @@ export default function Products() {
                   onChange={(e) => setFormData({ ...formData, type: e.target.value as ProductType })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
-                  <option value="bebida">Bebida</option>
-                  <option value="tirolesa">Tirolesa</option>
-                  <option value="combo_foto">Combo Foto</option>
-                  <option value="combo_drone">Combo Drone</option>
+                  <option value="CONSUMABLE">Consumível</option>
+                  <option value="SERVICE">Serviço</option>
                 </select>
               </div>
 
@@ -186,21 +147,7 @@ export default function Products() {
                 />
               </div>
 
-              <div>
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={formData.has_stock}
-                    onChange={(e) => setFormData({ ...formData, has_stock: e.target.checked })}
-                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                  />
-                  <span className="text-sm font-medium text-gray-700">
-                    Controlar estoque
-                  </span>
-                </label>
-              </div>
-
-              {formData.has_stock && (
+              {formData.type === 'CONSUMABLE' && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Quantidade em Estoque
@@ -266,10 +213,10 @@ export default function Products() {
               {productTypeLabels[product.type]}
             </p>
             <p className="text-lg font-bold text-blue-600 mb-2">
-              R$ {product.default_price.toFixed(2)}
+              R$ {product.default_price?.toFixed(2)}
             </p>
 
-            {product.has_stock && (
+            {product.type === 'CONSUMABLE' && (
               <div className={`text-sm px-2 py-1 rounded ${
                 product.stock_quantity > 0
                   ? 'bg-green-100 text-green-700'

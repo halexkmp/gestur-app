@@ -1,24 +1,24 @@
-export type SaleStatus = 'completed' | 'cancelled';
-export type PaymentMethod = 'pix' | 'dinheiro' | 'cartao';
+export type SaleStatus = 'COMPLETED' | 'PENDING' | 'CANCELED';
+export type PaymentMethod = 'PIX' | 'CURRENCY' | 'CREDIT_CARD';
 
 export interface Sale {
   id: string;
-  sale_number: number;
-  created_at: string;
+  sale_code: string;
   total_amount: number;
-  bugueiro_id: string | null;
-  partner_company_id: string | null;
+  partner_id: string | null;
+  partner_customer_quantity: number | null;
+  partner_customer_shift: string | null
   user_id: string;
   status: SaleStatus;
   notes: string | null;
   observations: string | null;
-  modified_at: string | null;
-  modified_by: string | null;
+  created_at: string;
+  items: SaleItem[];
+  payments: SalePayment[];
 }
 
 export interface SaleItem {
   id: string;
-  sale_id: string;
   product_id: string;
   quantity: number;
   unit_price: number;
@@ -27,7 +27,6 @@ export interface SaleItem {
 
 export interface SalePayment {
   id: string;
-  sale_id: string;
   payment_method: PaymentMethod;
   amount: number;
 }

@@ -1,35 +1,18 @@
 import { useState, useEffect } from 'react';
-import { db } from '../lib/firebase';
-import { 
-  collection, 
-  query, 
-  where, 
-  orderBy, 
-  getDocs, 
-  addDoc, 
-  updateDoc, 
-  doc, 
-  limit, 
-  serverTimestamp, 
-  getDoc 
-} from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
 import { Package, Edit, AlertCircle } from 'lucide-react';
 import { Product, StockChange } from '../types';
-
-type StockChangeWithRelations = StockChange & {
-  products: { name: string } | null;
-  profiles: { full_name: string } | null;
-};
+import { productService } from '../services/productService';
 
 export default function StockControl() {
-  const { profile, isAdmin } = useAuth();
+  const { user, isAdmin } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
-  const [stockHistory, setStockHistory] = useState<StockChangeWithRelations[]>([]);
+  const [stockHistory, setStockHistory] = useState<StockChange[]>([]);
+  const [filterProductId, setFilterProductId] = useState<string | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<string>('');
   const [showModal, setShowModal] = useState(false);
   const [formData, setFormData] = useState({
-    change_type: 'entrada' as 'entrada' | 'saida' | 'ajuste',
+    change_type: 'IN' as 'IN' | 'OUT',
     quantity: '',
     reason: ''
   });
@@ -41,88 +24,22 @@ export default function StockControl() {
   }, []);
 
   const loadData = async () => {
+    setLoading(true);
     try {
-      // Load products
-      let productsData: Product[] = [];
-      try {
-        const productsQuery = query(
-          collection(db, 'products'), 
-          where('has_stock', '==', true),
-          where('active', '==', true),
-          orderBy('name')
-        );
-        const productsSnapshot = await getDocs(productsQuery);
-        productsData = productsSnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })) as Product[];
-      } catch (error) {
-        console.error('Error loading products with filters and orderBy:', error);
-        // Fallback: simple query and manual filter
-        const productsSnapshot = await getDocs(collection(db, 'products'));
-        productsData = productsSnapshot.docs
-          .map(doc => ({ id: doc.id, ...doc.data() } as Product))
-          .filter(p => p.has_stock === true && p.active === true)
-          .sort((a, b) => a.name.localeCompare(b.name));
-      }
-      setProducts(productsData);
+      // Load products from API
+      const productsData = await productService.getAll();
+      setProducts(productsData
+        .filter(p => p.active && p.type === 'CONSUMABLE')
+        .sort((a, b) => a.name.localeCompare(b.name))
+      );
 
       // Load history
-      let historyDocs: any[] = [];
-      try {
-        const historyQuery = query(
-          collection(db, 'stock_changes'),
-          orderBy('created_at', 'desc'),
-          limit(50)
-        );
-        const historySnapshot = await getDocs(historyQuery);
-        historyDocs = historySnapshot.docs;
-      } catch (error) {
-        console.error('Error loading stock history with orderBy:', error);
-        // Fallback: simple query, manual sort and limit
-        const historySnapshot = await getDocs(collection(db, 'stock_changes'));
-        historyDocs = historySnapshot.docs
-          .sort((a, b) => {
-            const dateA = a.data().created_at?.toDate() || 0;
-            const dateB = b.data().created_at?.toDate() || 0;
-            return dateB - dateA;
-          })
-          .slice(0, 50);
-      }
-      
-      const historyData = await Promise.all(historyDocs.map(async (docSnapshot) => {
-        const data = docSnapshot.data();
-        
-        // Fetch related product
-        let productName = '-';
-        if (data.product_id) {
-          const productDoc = await getDoc(doc(db, 'products', data.product_id));
-          if (productDoc.exists()) {
-            productName = productDoc.data().name;
-          }
-        }
-
-        // Fetch related profile
-        let fullName = '-';
-        if (data.user_id) {
-          const profileDoc = await getDoc(doc(db, 'user', data.user_id));
-          if (profileDoc.exists()) {
-            fullName = profileDoc.data().full_name;
-          }
-        }
-
-        return {
-          id: docSnapshot.id,
-          ...data,
-          products: { name: productName },
-          profiles: { full_name: fullName },
-          created_at: data.created_at?.toDate?.()?.toISOString() || new Date().toISOString()
-        } as StockChangeWithRelations;
-      }));
-
+      const historyData = await productService.getStockChanges();
       setStockHistory(historyData);
     } catch (error) {
-      console.error('General error in loadData:', error);
+      console.error('Error loading data:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -144,32 +61,18 @@ export default function StockControl() {
 
     try {
       const quantity = parseInt(formData.quantity);
-      const quantityChange = formData.change_type === 'saida' ? -quantity : quantity;
-
-      await addDoc(collection(db, 'stock_changes'), {
+      
+      await productService.updateStock([{
         product_id: selectedProduct,
         change_type: formData.change_type,
-        quantity_change: quantityChange,
-        reason: formData.reason,
-        user_id: profile!.id,
-        created_at: serverTimestamp()
-      });
-
-      const product = products.find(p => p.id === selectedProduct);
-      if (product) {
-        const newQuantity = product.stock_quantity + quantityChange;
-        const productRef = doc(db, 'products', selectedProduct);
-        await updateDoc(productRef, {
-          stock_quantity: newQuantity,
-          updated_at: serverTimestamp()
-        });
-      }
+        quantity_change: quantity
+      }]);
 
       resetForm();
       loadData();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error updating stock:', err);
-      setError('Erro ao atualizar estoque');
+      setError(err.message || 'Erro ao atualizar estoque');
     } finally {
       setLoading(false);
     }
@@ -177,7 +80,7 @@ export default function StockControl() {
 
   const resetForm = () => {
     setFormData({
-      change_type: 'entrada',
+      change_type: 'IN',
       quantity: '',
       reason: ''
     });
@@ -186,12 +89,14 @@ export default function StockControl() {
     setError('');
   };
 
-  const changeTypeLabels = {
-    entrada: 'Entrada',
-    saida: 'Saída',
-    ajuste: 'Ajuste',
-    venda: 'Venda'
+  const changeTypeLabels: Record<string, string> = {
+    IN: 'Entrada',
+    OUT: 'Saída',
   };
+
+  const filteredHistory = filterProductId
+    ? stockHistory.filter(change => change.product.id === filterProductId)
+    : stockHistory;
 
   return (
     <div className="max-w-7xl mx-auto">
@@ -254,9 +159,8 @@ export default function StockControl() {
                   onChange={(e) => setFormData({ ...formData, change_type: e.target.value as any })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
-                  <option value="entrada">Entrada</option>
-                  <option value="saida">Saída</option>
-                  <option value="ajuste">Ajuste</option>
+                  <option value="IN">Entrada</option>
+                  <option value="OUT">Saída</option>
                 </select>
               </div>
 
@@ -316,8 +220,16 @@ export default function StockControl() {
 
       <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {products.map(product => (
-          <div key={product.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <Package className="w-8 h-8 text-blue-600 mb-3" />
+          <button
+            key={product.id}
+            onClick={() => setFilterProductId(filterProductId === product.id ? null : product.id)}
+            className={`bg-white rounded-xl shadow-sm border p-6 text-left transition ${
+              filterProductId === product.id ? 'border-blue-500 ring-2 ring-blue-200' : 'border-gray-200 hover:border-blue-300'
+            }`}
+          >
+            <Package className={`w-8 h-8 mb-3 ${
+              filterProductId === product.id ? 'text-blue-600' : 'text-gray-400'
+            }`} />
             <h3 className="font-semibold text-gray-800 mb-1">{product.name}</h3>
             <p className={`text-2xl font-bold ${
               product.stock_quantity > 0 ? 'text-green-600' : 'text-red-600'
@@ -325,14 +237,29 @@ export default function StockControl() {
               {product.stock_quantity}
             </p>
             <p className="text-sm text-gray-600 mt-1">unidades</p>
-          </div>
+          </button>
         ))}
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <h2 className="text-lg font-semibold text-gray-800 mb-4">
-          Histórico de Alterações
-        </h2>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-lg font-semibold text-gray-800">
+            Histórico de Alterações
+            {filterProductId && (
+              <span className="ml-2 text-sm font-normal text-blue-600">
+                (Filtrado por: {products.find(p => p.id === filterProductId)?.name})
+              </span>
+            )}
+          </h2>
+          {filterProductId && (
+            <button
+              onClick={() => setFilterProductId(null)}
+              className="text-sm text-gray-500 hover:text-gray-700"
+            >
+              Limpar Filtro
+            </button>
+          )}
+        </div>
 
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -347,37 +274,44 @@ export default function StockControl() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {stockHistory.map(change => (
-                <tr key={change.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 text-sm text-gray-800">
-                    {new Date(change.created_at).toLocaleString('pt-BR')}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-800">
-                    {change.products?.name || '-'}
-                  </td>
-                  <td className="px-4 py-3 text-sm">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      change.change_type === 'entrada' ? 'bg-green-100 text-green-700' :
-                      change.change_type === 'saida' ? 'bg-red-100 text-red-700' :
-                      change.change_type === 'venda' ? 'bg-blue-100 text-blue-700' :
-                      'bg-gray-100 text-gray-700'
-                    }`}>
-                      {changeTypeLabels[change.change_type]}
-                    </span>
-                  </td>
-                  <td className={`px-4 py-3 text-sm text-right font-semibold ${
-                    change.quantity_change > 0 ? 'text-green-600' : 'text-red-600'
-                  }`}>
-                    {change.quantity_change > 0 ? '+' : ''}{change.quantity_change}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-600">
-                    {change.reason || '-'}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-600">
-                    {change.profiles?.full_name || '-'}
+              {filteredHistory.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
+                    Nenhum registro encontrado
                   </td>
                 </tr>
-              ))}
+              ) : (
+                filteredHistory.map(change => (
+                  <tr key={change.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 text-sm text-gray-800">
+                      {new Date(change.created_at).toLocaleString('pt-BR')}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-800">
+                      {change.product.name}
+                    </td>
+                    <td className="px-4 py-3 text-sm">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        change.change_type === 'IN' ? 'bg-green-100 text-green-700' :
+                        change.change_type === 'OUT' ? 'bg-red-100 text-red-700' :
+                        'bg-gray-100 text-gray-700'
+                      }`}>
+                        {changeTypeLabels[change.change_type]}
+                      </span>
+                    </td>
+                    <td className={`px-4 py-3 text-sm text-right font-semibold ${
+                      change.quantity_change > 0 ? 'text-green-600' : 'text-red-600'
+                    }`}>
+                      {change.quantity_change > 0 ? '+' : ''}{change.quantity_change}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600">
+                      {change.reason || (change.sale ? `Venda: ${change.sale.sale_code}` : '-')}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600">
+                      {change.user.name}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

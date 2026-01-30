@@ -1,28 +1,20 @@
 import { useState, useEffect } from 'react';
-import { db } from '../lib/firebase';
-import { 
-  collection, 
-  query, 
-  where, 
-  orderBy, 
-  getDocs, 
-  Timestamp, 
-  doc, 
-  getDoc,
-  updateDoc 
-} from 'firebase/firestore';
 import { Calendar, DollarSign, Users, TrendingUp, Download, Edit2, Eye, X } from 'lucide-react';
-import { Sale as BaseSale, BugueiroClient, SaleItem, SalePayment } from '../types';
+import { Sale as BaseSale, SaleItem, SalePayment, User } from '../types';
+import { saleService } from '../services/saleService';
+import { productService } from '../services/productService';
+import { partnerService } from '../services/partnerService';
 
 type Sale = BaseSale & {
-  bugueiros: { name: string } | null;
-  partner_companies: { name: string } | null;
-  users: { name: string } | null;
+  buggyman: { name: string } | null;
+  business: { name: string } | null;
+  user: User | null;
 };
 
 type SaleDetails = {
   sale: Sale;
   items: (SaleItem & { product_name: string })[];
+  user: User;
   payments: SalePayment[];
 };
 
@@ -38,9 +30,9 @@ type ProductRevenue = {
   quantity: number;
 };
 
-type BugueiroCommission = {
-  bugueiro_id: string;
-  bugueiro_name: string;
+type BuggymanCommission = {
+  buggyman_id: string;
+  buggyman_name: string;
   pix_key: string | null;
   client_count: number;
   commission: number;
@@ -61,7 +53,7 @@ export default function Reports() {
   const [sales, setSales] = useState<Sale[]>([]);
   const [paymentSummary, setPaymentSummary] = useState<PaymentSummary[]>([]);
   const [productRevenue, setProductRevenue] = useState<ProductRevenue[]>([]);
-  const [commissions, setCommissions] = useState<BugueiroCommission[]>([]);
+  const [commissions, setCommissions] = useState<BuggymanCommission[]>([]);
   const [loading, setLoading] = useState(false);
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [totalSales, setTotalSales] = useState(0);
@@ -79,167 +71,108 @@ export default function Reports() {
     setLoading(true);
 
     try {
-      const [startYear, startMonth, startDay] = dateRange.start.split('-').map(Number);
-      const startDate = new Date(startYear, startMonth - 1, startDay, 0, 0, 0, 0);
+      const date_from = new Date(`${dateRange.start}T00:00:00`).toISOString();
+      const date_to = new Date(`${dateRange.end}T23:59:59`).toISOString();
 
-      const [endYear, endMonth, endDay] = dateRange.end.split('-').map(Number);
-      const endDate = new Date(endYear, endMonth - 1, endDay, 23, 59, 59, 999);
+      const salesData = await saleService.getReport({
+        date_from,
+        date_to
+      });
 
-      const fetchSales = async () => {
-        try {
-          const salesQuery = query(
-            collection(db, 'sales'),
-            where('created_at', '>=', Timestamp.fromDate(startDate)),
-            where('created_at', '<=', Timestamp.fromDate(endDate)),
-            where('status', '==', 'completed'),
-            orderBy('created_at', 'desc')
-          );
-          return await getDocs(salesQuery);
-        } catch (error) {
-          console.error('Error loading sales with filters and orderBy:', error);
-          // Fallback: fetch all and filter manually
-          const salesSnap = await getDocs(collection(db, 'sales'));
-          const filteredDocs = salesSnap.docs.filter(docSnap => {
-            const data = docSnap.data();
-            const createdAt = data.created_at?.toDate();
-            return (
-              data.status === 'completed' &&
-              createdAt >= startDate &&
-              createdAt <= endDate
-            );
-          }).sort((a, b) => {
-            const dateA = a.data().created_at?.toDate() || 0;
-            const dateB = b.data().created_at?.toDate() || 0;
-            return dateB - dateA;
-          });
-          return { docs: filteredDocs } as any;
-        }
-      };
+      setSales(salesData as Sale[]);
 
-      const salesSnap = await fetchSales();
-      
-      const salesData = await Promise.all((salesSnap.docs as any[]).map(async (docSnap) => {
-        const data = docSnap.data();
-        
-        let bugueiroName = null;
-        if (data.bugueiro_id) {
-          const bugueiroDoc = await getDoc(doc(db, 'bugueiros', data.bugueiro_id));
-          if (bugueiroDoc.exists()) {
-            bugueiroName = bugueiroDoc.data().name;
-          }
-        }
-
-        let partnerName = null;
-        if (data.partner_company_id) {
-          const partnerDoc = await getDoc(doc(db, 'partner_companies', data.partner_company_id));
-          if (partnerDoc.exists()) {
-            partnerName = partnerDoc.data().name;
-          }
-        }
-
-        let userName = null;
-        if (data.user_id) {
-          const userDoc = await getDoc(doc(db, 'user', data.user_id));
-          if (userDoc.exists()) {
-            userName = userDoc.data().full_name || userDoc.data().name;
-          }
-        }
-
-        return {
-          id: docSnap.id,
-          ...data,
-          bugueiros: bugueiroName ? { name: bugueiroName } : null,
-          partner_companies: partnerName ? { name: partnerName } : null,
-          users: userName ? { name: userName } : null,
-          observations: data.observations || null,
-          created_at: data.created_at?.toDate?.()?.toISOString() || new Date().toISOString()
-        } as Sale;
-      }));
-
-      setSales(salesData);
+      // Totais
+      const revenue = salesData.reduce((acc, sale) => acc + sale.total_amount, 0);
+      setTotalRevenue(revenue);
       setTotalSales(salesData.length);
-      setTotalRevenue(salesData.reduce((sum, sale) => sum + sale.total_amount, 0));
 
-      const saleIds = salesData.map(s => s.id);
-
-      if (saleIds.length > 0) {
-        // Firebase doesn't support 'in' with more than 10-30 values easily, 
-        // but for a simple migration we'll query all payments/clients for these sales
-        // Note: For large datasets, this would need optimization.
-        
-        // Fetch all payments for these sales
-        const paymentsQuery = query(collection(db, 'sale_payments'));
-        const paymentsSnap = await getDocs(paymentsQuery);
-        const filteredPayments = paymentsSnap.docs
-          .map(doc => doc.data())
-          .filter(p => saleIds.includes(p.sale_id));
-
-        const summary: Record<string, number> = {};
-        filteredPayments.forEach(p => {
-          summary[p.payment_method] = (summary[p.payment_method] || 0) + p.amount;
+      // Resumo por Pagamento
+      const paymentsMap: Record<string, number> = {};
+      salesData.forEach(sale => {
+        sale.payments?.forEach(payment => {
+          const method = payment.payment_method;
+          paymentsMap[method] = (paymentsMap[method] || 0) + payment.amount;
         });
-        setPaymentSummary(
-          Object.entries(summary).map(([method, total]) => ({ method, total }))
-        );
+      });
 
-        // Fetch all sale items for these sales
-        const itemsSnap = await getDocs(collection(db, 'sale_items'));
-        const filteredItems = itemsSnap.docs
-          .map(doc => ({ id: doc.id, ...doc.data() } as any))
-          .filter(item => saleIds.includes(item.sale_id));
+      const paymentSummaryData: PaymentSummary[] = Object.entries(paymentsMap).map(([method, total]) => ({
+        method,
+        total
+      }));
+      setPaymentSummary(paymentSummaryData);
 
-        const revenueMap: Record<string, { name: string, total: number, quantity: number }> = {};
-        for (const item of filteredItems) {
-          if (!revenueMap[item.product_id]) {
-            const productDoc = await getDoc(doc(db, 'products', item.product_id));
-            const productName = productDoc.exists() ? productDoc.data().name : 'Produto Removido';
-            revenueMap[item.product_id] = { name: productName, total: 0, quantity: 0 };
+      // Receita por Produto
+      const productsMap: Record<string, ProductRevenue> = {};
+      salesData.forEach(sale => {
+        sale.items?.forEach(item => {
+          if (!productsMap[item.product_id]) {
+            productsMap[item.product_id] = {
+              product_id: item.product_id,
+              product_name: 'Carregando...',
+              total: 0,
+              quantity: 0
+            };
           }
-          revenueMap[item.product_id].total += item.total_price;
-          revenueMap[item.product_id].quantity += item.quantity;
-        }
-        setProductRevenue(
-          Object.entries(revenueMap).map(([id, data]) => ({
-            product_id: id,
-            product_name: data.name,
-            total: data.total,
-            quantity: data.quantity
-          })).sort((a, b) => b.total - a.total)
-        );
+          productsMap[item.product_id].total += item.total_price;
+          productsMap[item.product_id].quantity += item.quantity;
+        });
+      });
 
-        // Fetch all bugueiro clients for these sales
-        const clientsQuery = query(collection(db, 'bugueiro_clients'));
-        const clientsSnap = await getDocs(clientsQuery);
-        const filteredClients = clientsSnap.docs
-          .map(doc => ({ id: doc.id, ...doc.data() } as BugueiroClient))
-          .filter(c => saleIds.includes(c.sale_id));
+      const productRevenueData = Object.values(productsMap);
+      setProductRevenue(productRevenueData);
 
-        const commissionsMap: Record<string, BugueiroCommission> = {};
-        for (const client of filteredClients) {
-          if (!commissionsMap[client.bugueiro_id]) {
-            const bugueiroDoc = await getDoc(doc(db, 'bugueiros', client.bugueiro_id));
-            if (bugueiroDoc.exists()) {
-              const bugueiroData = bugueiroDoc.data();
-              commissionsMap[client.bugueiro_id] = {
-                bugueiro_id: client.bugueiro_id,
-                bugueiro_name: bugueiroData.name,
-                pix_key: bugueiroData.pix_key,
+      // Carregar nomes dos produtos
+      try {
+        const products = await productService.getAll();
+        setProductRevenue(prev => prev.map(item => {
+          const product = products.find(p => p.id === item.product_id);
+          return {
+            ...item,
+            product_name: product ? product.name : 'Produto não encontrado'
+          };
+        }));
+      } catch (error) {
+        console.error('Error loading product names:', error);
+      }
+
+      // Comissões
+      if (salesData.length > 0) {
+        try {
+          const saleIds = salesData.map(s => s.id);
+          const [partnerCustomers, allPartners] = await Promise.all([
+            partnerService.getPartnerCustomerReport(saleIds),
+            partnerService.getAll()
+          ]);
+
+          const commissionMap: Record<string, BuggymanCommission> = {};
+
+          partnerCustomers.forEach(pc => {
+            const partner = allPartners.find(p => p.id === pc.partner_id);
+            if (!partner) return;
+
+            if (!commissionMap[pc.partner_id]) {
+              commissionMap[pc.partner_id] = {
+                buggyman_id: pc.partner_id,
+                buggyman_name: partner.name,
+                pix_key: partner.pix_key,
                 client_count: 0,
                 commission: 0
               };
             }
-          }
-          if (commissionsMap[client.bugueiro_id]) {
-            commissionsMap[client.bugueiro_id].client_count += 1;
-            commissionsMap[client.bugueiro_id].commission += 10;
-          }
+
+            commissionMap[pc.partner_id].client_count += pc.quantity;
+            commissionMap[pc.partner_id].commission += pc.quantity * 10;
+          });
+
+          setCommissions(Object.values(commissionMap));
+        } catch (error) {
+          console.error('Error loading commissions:', error);
+          setCommissions([]);
         }
-        setCommissions(Object.values(commissionsMap));
       } else {
-        setPaymentSummary([]);
-        setProductRevenue([]);
         setCommissions([]);
       }
+
     } catch (error) {
       console.error('Error loading report:', error);
     } finally {
@@ -265,38 +198,34 @@ export default function Reports() {
   const handleViewDetails = async (sale: Sale) => {
     setLoadingDetails(true);
     try {
-      // Fetch items for this sale
-      const itemsQuery = query(
-        collection(db, 'sale_items'),
-        where('sale_id', '==', sale.id)
-      );
-      const itemsSnap = await getDocs(itemsQuery);
-      const items = await Promise.all(itemsSnap.docs.map(async (docSnap) => {
-        const data = docSnap.data();
-        const productDoc = await getDoc(doc(db, 'products', data.product_id));
-        const productName = productDoc.exists() ? productDoc.data().name : 'Produto Removido';
-        return {
-          id: docSnap.id,
-          ...data,
-          product_name: productName
-        } as SaleItem & { product_name: string };
-      }));
+      const [items, partner] = await Promise.all([
+        Promise.all(sale.items.map(async (item) => {
+          const products = await productService.getAll();
+          const product = products.find(p => p.id === item.product_id);
+          const productName = product ? product.name : 'Produto Removido';
+          return {
+            ...item,
+            product_name: productName
+          } as SaleItem & { product_name: string };
+        })),
+        sale.partner_id ? partnerService.getById(sale.partner_id) : Promise.resolve(null)
+      ]);
 
-      // Fetch payments for this sale
-      const paymentsQuery = query(
-        collection(db, 'sale_payments'),
-        where('sale_id', '==', sale.id)
-      );
-      const paymentsSnap = await getDocs(paymentsQuery);
-      const payments = paymentsSnap.docs.map(docSnap => ({
-        id: docSnap.id,
-        ...docSnap.data()
-      } as SalePayment));
+      const updatedSale = { ...sale };
+      if (partner) {
+        if (partner.type === 'BUGGYMAN') {
+          updatedSale.buggyman = { name: partner.name };
+          updatedSale.business = null;
+        } else {
+          updatedSale.business = { name: partner.name };
+          updatedSale.buggyman = null;
+        }
+      }
 
       setViewingSale({
-        sale,
+        sale: updatedSale,
         items,
-        payments
+        payments: sale.payments
       });
     } catch (error) {
       console.error('Error loading sale details:', error);
@@ -311,10 +240,8 @@ export default function Reports() {
 
     setSavingEdit(true);
     try {
-      const saleRef = doc(db, 'sales', editingSale.id);
-      await updateDoc(saleRef, {
-        observations: editObservations,
-        modified_at: new Date().toISOString()
+      await saleService.update(editingSale.id, {
+        observations: editObservations
       });
 
       setSales(sales.map(s => 
@@ -332,9 +259,9 @@ export default function Reports() {
   };
 
   const paymentMethodLabels: Record<string, string> = {
-    pix: 'Pix',
-    dinheiro: 'Dinheiro',
-    cartao: 'Cartão'
+    PIX: 'Pix',
+    CURRENCY: 'Dinheiro',
+    CREDIT_CARD: 'Cartão'
   };
 
   return (
@@ -507,9 +434,9 @@ export default function Reports() {
               ) : (
                 <div className="space-y-3">
                   {commissions.map(c => (
-                    <div key={c.bugueiro_id} className="p-3 bg-gray-50 rounded-lg">
+                    <div key={c.buggyman_id} className="p-3 bg-gray-50 rounded-lg">
                       <div className="flex justify-between items-center mb-1">
-                        <span className="font-medium text-gray-800">{c.bugueiro_name}</span>
+                        <span className="font-medium text-gray-800">{c.buggyman_name}</span>
                         <span className="text-lg font-bold text-orange-600">
                           R$ {c.commission.toFixed(2)}
                         </span>
@@ -555,10 +482,10 @@ export default function Reports() {
                           {new Date(sale.created_at).toLocaleString('pt-BR')}
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-800">
-                          #{sale.sale_number}
+                          {sale.sale_code}
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-600">
-                          {sale.users?.name || '-'}
+                          {sale.user.name || '-'}
                         </td>
                         <td className="px-4 py-3 text-sm text-right font-semibold text-gray-800">
                           R$ {sale.total_amount.toFixed(2)}
@@ -596,7 +523,7 @@ export default function Reports() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
             <h2 className="text-xl font-bold text-gray-800 mb-4">
-              Editar Venda #{editingSale.sale_number}
+              Editar Venda {editingSale.sale_code}
             </h2>
             
             <div className="mb-4">
@@ -638,7 +565,7 @@ export default function Reports() {
             <div className="p-6 border-b border-gray-200 flex justify-between items-center bg-gray-50">
               <div>
                 <h2 className="text-xl font-bold text-gray-800">
-                  Venda #{viewingSale.sale.sale_number}
+                  Venda {viewingSale.sale.sale_code}
                 </h2>
                 <p className="text-sm text-gray-500">
                   {new Date(viewingSale.sale.created_at).toLocaleString('pt-BR')}
@@ -656,22 +583,22 @@ export default function Reports() {
               <div className="grid sm:grid-cols-2 gap-4 mb-6">
                 <div className="bg-gray-50 p-3 rounded-lg">
                   <p className="text-xs text-gray-500 uppercase font-semibold">Vendedor</p>
-                  <p className="text-gray-800 font-medium">{viewingSale.sale.users?.name || '-'}</p>
+                  <p className="text-gray-800 font-medium">{viewingSale.sale.user.name || '-'}</p>
                 </div>
                 <div className="bg-gray-50 p-3 rounded-lg">
                   <p className="text-xs text-gray-500 uppercase font-semibold">Bugueiro</p>
-                  <p className="text-gray-800 font-medium">{viewingSale.sale.bugueiros?.name || '-'}</p>
+                  <p className="text-gray-800 font-medium">{viewingSale.sale.buggyman?.name || '-'}</p>
                 </div>
                 <div className="bg-gray-50 p-3 rounded-lg">
                   <p className="text-xs text-gray-500 uppercase font-semibold">Empresa Parceira</p>
-                  <p className="text-gray-800 font-medium">{viewingSale.sale.partner_companies?.name || '-'}</p>
+                  <p className="text-gray-800 font-medium">{viewingSale.sale.business?.name || '-'}</p>
                 </div>
                 <div className="bg-gray-50 p-3 rounded-lg">
                   <p className="text-xs text-gray-500 uppercase font-semibold">Status</p>
                   <span className={`inline-block px-2 py-1 text-xs font-semibold rounded-full ${
-                    viewingSale.sale.status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                    viewingSale.sale.status === 'COMPLETED' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
                   }`}>
-                    {viewingSale.sale.status === 'completed' ? 'Concluída' : 'Cancelada'}
+                    {viewingSale.sale.status === 'COMPLETED' ? 'Concluída' : 'Cancelada'}
                   </span>
                 </div>
               </div>
