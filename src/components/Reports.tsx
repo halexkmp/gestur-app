@@ -4,6 +4,7 @@ import { Sale as BaseSale, SaleItem, SalePayment, User } from '../types';
 import { saleService } from '../services/saleService';
 import { productService } from '../services/productService';
 import { partnerService } from '../services/partnerService';
+import { userService } from '../services/userService';
 
 type Sale = BaseSale & {
   buggyman: { name: string } | null;
@@ -54,6 +55,8 @@ export default function Reports() {
   const [paymentSummary, setPaymentSummary] = useState<PaymentSummary[]>([]);
   const [productRevenue, setProductRevenue] = useState<ProductRevenue[]>([]);
   const [commissions, setCommissions] = useState<BuggymanCommission[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [selectedUserId, setSelectedUserId] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [totalSales, setTotalSales] = useState(0);
@@ -64,8 +67,21 @@ export default function Reports() {
   const [loadingDetails, setLoadingDetails] = useState(false);
 
   useEffect(() => {
+    loadUsers();
+  }, []);
+
+  useEffect(() => {
     loadReport()
-  }, [dateRange]);
+  }, [dateRange, selectedUserId]);
+
+  const loadUsers = async () => {
+    try {
+      const usersData = await userService.getAll();
+      setUsers(usersData);
+    } catch (error) {
+      console.error('Error loading users:', error);
+    }
+  };
 
   const loadReport = async () => {
     setLoading(true);
@@ -76,7 +92,8 @@ export default function Reports() {
 
       const salesData = await saleService.getReport({
         date_from,
-        date_to
+        date_to,
+        user_id: selectedUserId || undefined
       });
 
       setSales(salesData as Sale[]);
@@ -295,6 +312,24 @@ export default function Reports() {
               onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
+          </div>
+
+          <div className="flex-1 min-w-[200px]">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Usuário
+            </label>
+            <select
+              value={selectedUserId}
+              onChange={(e) => setSelectedUserId(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="">Todos os usuários</option>
+              {users.map((user) => (
+                <option key={user.id} value={user.id}>
+                  {user.name}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="flex gap-2">
