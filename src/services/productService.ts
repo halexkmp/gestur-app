@@ -7,7 +7,7 @@ export const productService = {
   create: (product: Omit<Product, 'id' | 'created_at'>) => 
     api.post<Product>('/products/', product),
   update: (id: string, product: Partial<Product>) => 
-    api.patch<Product>(`/products/${id}`, product),
+    api.put<Product>(`/products/${id}`, product),
   delete: (id: string) => api.delete(`/products/${id}`),
   updateStock: (data: UpdateStockRequest[]) =>
     api.post<StockResponse[]>('/products/stock/update', data),
