@@ -323,7 +323,7 @@ export default function Reports() {
               onChange={(e) => setSelectedUserId(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
-              <option value="">Todos os usuários</option>
+              {users.length > 1 && <option value="">Todos os usuários</option>}
               {users.map((user) => (
                 <option key={user.id} value={user.id}>
                   {user.name}
