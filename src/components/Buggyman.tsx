@@ -73,15 +73,15 @@ export default function Buggyman() {
     <div className="max-w-6xl mx-auto">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-800">Buggyman</h1>
-          <p className="text-gray-600 mt-1">Gerencie os buggymen e suas informações</p>
+          <h1 className="text-3xl font-bold text-gray-800">Bugueiros</h1>
+          <p className="text-gray-600 mt-1">Gerencie os bugueiros e suas informações</p>
         </div>
         <button
           onClick={() => setShowForm(true)}
           className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition flex items-center gap-2"
         >
           <Plus className="w-5 h-5" />
-          Novo Buggyman
+          Novo Bugueiro
         </button>
       </div>
 
@@ -89,7 +89,7 @@ export default function Buggyman() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start sm:items-center justify-center z-50 p-4 overflow-y-auto">
           <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 my-auto">
             <h2 className="text-xl font-bold text-gray-800 mb-4">
-              {editingBuggyman ? 'Editar Buggyman' : 'Novo Buggyman'}
+              {editingBuggyman ? 'Editar Bugueiro' : 'Novo Bugueiro'}
             </h2>
 
             <form onSubmit={handleSubmit} className="space-y-4">

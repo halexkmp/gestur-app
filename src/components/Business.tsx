@@ -20,7 +20,7 @@ export default function Business() {
       const data = await partnerService.getByType(PartnerType.BUSINESS);
       setBusinesses(data);
     } catch (error) {
-      console.error('Error loading businesses:', error);
+      console.error('Error loading empresas:', error);
     }
   };
 
@@ -69,7 +69,7 @@ export default function Business() {
     <div className="max-w-6xl mx-auto">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-800">Business</h1>
+          <h1 className="text-3xl font-bold text-gray-800">Empresas Parceiras</h1>
           <p className="text-gray-600 mt-1">Gerencie empresas com pagamento diferido</p>
         </div>
         <button
