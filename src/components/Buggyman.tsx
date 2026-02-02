@@ -86,8 +86,8 @@ export default function Buggyman() {
       </div>
 
       {showForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start sm:items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 my-auto">
             <h2 className="text-xl font-bold text-gray-800 mb-4">
               {editingBuggyman ? 'Editar Buggyman' : 'Novo Buggyman'}
             </h2>
