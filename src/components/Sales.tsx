@@ -188,7 +188,10 @@ export default function Sales() {
           .map(p => ({
             payment_method: p.method,
             amount: parseFloat(p.amount)
-          })) : [],
+          })) : [{
+            payment_method: 'BUSINESS_PARTNER',
+            amount: calculateTotal()
+          }],
         observations: observations || undefined,
         partner_customer_quantity: selectedBuggyman ? clientCount : undefined,
         partner_customer_shift: selectedBuggyman ? shift : undefined,

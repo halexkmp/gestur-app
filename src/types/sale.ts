@@ -1,5 +1,5 @@
 export type SaleStatus = 'COMPLETED' | 'PENDING' | 'CANCELED';
-export type PaymentMethod = 'PIX' | 'CURRENCY' | 'CREDIT_CARD';
+export type PaymentMethod = 'PIX' | 'CURRENCY' | 'CREDIT_CARD' | 'BUSINESS_PARTNER';
 
 export interface Sale {
   id: string;

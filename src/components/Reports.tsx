@@ -278,7 +278,8 @@ export default function Reports() {
   const paymentMethodLabels: Record<string, string> = {
     PIX: 'Pix',
     CURRENCY: 'Dinheiro',
-    CREDIT_CARD: 'Cartão'
+    CREDIT_CARD: 'Cartão',
+    BUSINESS_PARTNER: 'Parceiro Comercial'
   };
 
   return (

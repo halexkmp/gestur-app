@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Plus, Edit2, Archive, Building2 } from 'lucide-react';
-import { Partner, PartnerType } from '../types';
+import { Partner, PartnerType, Sale } from '../types';
 import { partnerService } from '../services/partnerService';
+import { saleService } from '../services/saleService';
 
 export default function Business() {
   const [businesses, setBusinesses] = useState<Partner[]>([]);
@@ -10,6 +11,9 @@ export default function Business() {
   const [formData, setFormData] = useState({
     name: '', type: PartnerType.BUSINESS
   });
+  const [selectedBusinessId, setSelectedBusinessId] = useState<string | null>(null);
+  const [sales, setSales] = useState<Sale[]>([]);
+  const [loadingSales, setLoadingSales] = useState(false);
 
   useEffect(() => {
     loadBusinesses();
@@ -63,6 +67,25 @@ export default function Business() {
     });
     setEditingBusiness(null);
     setShowForm(false);
+  };
+
+  const toggleSalesForBusiness = async (businessId: string) => {
+    if (selectedBusinessId === businessId) {
+      setSelectedBusinessId(null);
+      setSales([]);
+      return;
+    }
+    setSelectedBusinessId(businessId);
+    setLoadingSales(true);
+    try {
+      const data = await saleService.getReport({ partner_id: businessId });
+      setSales(data);
+    } catch (error) {
+      console.error('Error loading sales for business:', error);
+      setSales([]);
+    } finally {
+      setLoadingSales(false);
+    }
   };
 
   return (
@@ -152,6 +175,44 @@ export default function Business() {
             {!business.active && (
               <div className="mt-2 text-sm text-red-600 font-medium">
                 Inativo
+              </div>
+            )}
+
+            <button
+              onClick={() => toggleSalesForBusiness(business.id)}
+              className="mt-3 w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition"
+            >
+              {selectedBusinessId === business.id ? 'Esconder vendas' : 'Ver vendas'}
+            </button>
+
+            {selectedBusinessId === business.id && (
+              <div className="mt-4 border-t pt-4">
+                {loadingSales ? (
+                  <p className="text-sm text-gray-500">Carregando vendas...</p>
+                ) : sales.length === 0 ? (
+                  <p className="text-sm text-gray-500">Nenhuma venda encontrada para esta empresa.</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-3 py-2 text-left text-gray-700 font-medium">Data/Hora</th>
+                          <th className="px-3 py-2 text-left text-gray-700 font-medium">Número</th>
+                          <th className="px-3 py-2 text-right text-gray-700 font-medium">Valor</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {sales.map((s) => (
+                          <tr key={s.id} className="hover:bg-gray-50">
+                            <td className="px-3 py-2 text-gray-800">{new Date(s.created_at).toLocaleString('pt-BR')}</td>
+                            <td className="px-3 py-2 text-gray-800">{s.sale_code}</td>
+                            <td className="px-3 py-2 text-right text-gray-800">R$ {s.total_amount.toFixed(2)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             )}
           </div>
