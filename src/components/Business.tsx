@@ -198,7 +198,7 @@ export default function Business() {
                         <tr>
                           <th className="px-3 py-2 text-left text-gray-700 font-medium">Data/Hora</th>
                           <th className="px-3 py-2 text-left text-gray-700 font-medium">Número</th>
-                          <th className="px-3 py-2 text-right text-gray-700 font-medium">Valor</th>
+                          <th className="px-3 py-2 text-right text-gray-700 font-medium">Qtd.</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
@@ -206,7 +206,9 @@ export default function Business() {
                           <tr key={s.id} className="hover:bg-gray-50">
                             <td className="px-3 py-2 text-gray-800">{new Date(s.created_at).toLocaleString('pt-BR')}</td>
                             <td className="px-3 py-2 text-gray-800">{s.sale_code}</td>
-                            <td className="px-3 py-2 text-right text-gray-800">R$ {s.total_amount.toFixed(2)}</td>
+                            <td className="px-3 py-2 text-right text-gray-800">
+                              {s.items?.reduce((acc, item) => acc + item.quantity, 0) || 0}
+                            </td>
                           </tr>
                         ))}
                       </tbody>
