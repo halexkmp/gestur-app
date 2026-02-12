@@ -1,11 +1,16 @@
-export type UserRole = 'ADMIN' | 'OPERATOR';
+export type UserRole = 'ADMIN' | 'MANAGER' | 'HUMAN_RESOURCES' | 'OPERATOR';
+
+export interface Role {
+  id: string;
+  name: string;
+}
 
 export interface User {
   id: string;
   username: string;
   name: string;
   active: boolean;
-  role: UserRole;
+  roles: Role[];
   created_at: string;
 }
 

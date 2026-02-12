@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Plus, Edit2, UserPlus, Shield, ShieldAlert, UserCheck, UserX } from 'lucide-react';
-import { User, UserRole } from '../types';
+import { User, Role } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { userService } from '../services/userService';
 
 export default function Users() {
   const { isAdmin } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
+  const [roles, setRoles] = useState<Role[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(false);
@@ -14,11 +15,12 @@ export default function Users() {
     name: '',
     username: '',
     password: '',
-    role: 'OPERATOR' as UserRole
+    roleIds: [] as string[]
   });
 
   useEffect(() => {
     loadUsers();
+    loadRoles();
   }, []);
 
   const loadUsers = async () => {
@@ -30,25 +32,39 @@ export default function Users() {
     }
   };
 
+  const loadRoles = async () => {
+    try {
+      const data = await userService.getRoles();
+      setRoles(data);
+    } catch (error) {
+      console.error('Error loading roles:', error);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      const userData = {
-        name: formData.name,
-        username: formData.username,
-        password: formData.password,
-        role: formData.role,
-      };
-
       if (editingUser) {
+        const userData = {
+          name: formData.name,
+          username: formData.username,
+          password: formData.password || undefined,
+          roles: formData.roleIds.map(id => ({ id })),
+        };
         await userService.update(editingUser.id, userData);
       } else {
-        await userService.create({
-          ...userData,
-          active: true,
-        });
+        const userData = {
+          name: formData.name,
+          username: formData.username,
+          password: formData.password,
+          roles: formData.roleIds.map(id => {
+            const role = roles.find(r => r.id === id);
+            return role ? role.name : 'OPERATOR';
+          }),
+        };
+        await userService.create(userData);
       }
 
       resetForm();
@@ -84,9 +100,18 @@ export default function Users() {
       name: user.name,
       username: user.username,
       password: '',
-      role: user.role
+      roleIds: user.roles.map(r => r.id)
     });
     setShowForm(true);
+  };
+
+  const toggleRoleId = (roleId: string) => {
+    setFormData(prev => {
+      const roleIds = prev.roleIds.includes(roleId)
+        ? prev.roleIds.filter(id => id !== roleId)
+        : [...prev.roleIds, roleId];
+      return { ...prev, roleIds };
+    });
   };
 
   const resetForm = () => {
@@ -94,7 +119,7 @@ export default function Users() {
       name: '',
       username: '',
       password: '',
-      role: 'OPERATOR'
+      roleIds: [roles.find(r => r.name === 'OPERATOR')?.id].filter(Boolean) as string[]
     });
     setEditingUser(null);
     setShowForm(false);
@@ -158,11 +183,18 @@ export default function Users() {
                     {user.username}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      user.role === 'ADMIN' ? 'bg-purple-100 text-purple-800' : 'bg-green-100 text-green-800'
-                    }`}>
-                      {user.role === 'ADMIN' ? 'Admin' : 'Operador'}
-                    </span>
+                    <div className="flex flex-wrap gap-1">
+                      {user.roles.map((role) => (
+                        <span key={role.id} className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          role.name === 'ADMIN' ? 'bg-purple-100 text-purple-800' : 
+                          role.name === 'MANAGER' ? 'bg-blue-100 text-blue-800' :
+                          role.name === 'HUMAN_RESOURCES' ? 'bg-orange-100 text-orange-800' :
+                          'bg-green-100 text-green-800'
+                        }`}>
+                          {role.name}
+                        </span>
+                      ))}
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap hidden md:table-cell">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -247,22 +279,30 @@ export default function Users() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Cargo
+                  Cargos
                 </label>
-                <select
-                  value={formData.role}
-                  onChange={(e) => setFormData({ ...formData, role: e.target.value as UserRole })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="OPERATOR">Operador</option>
-                  <option value="ADMIN">Administrador</option>
-                </select>
+                <div className="grid grid-cols-2 gap-2 border border-gray-300 rounded-lg p-3 max-h-40 overflow-y-auto">
+                  {roles.map((role) => (
+                    <label key={role.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded transition">
+                      <input
+                        type="checkbox"
+                        checked={formData.roleIds.includes(role.id)}
+                        onChange={() => toggleRoleId(role.id)}
+                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                      />
+                      <span className="text-sm text-gray-700">{role.name}</span>
+                    </label>
+                  ))}
+                </div>
+                {formData.roleIds.length === 0 && (
+                  <p className="mt-1 text-xs text-red-500">Selecione pelo menos um cargo</p>
+                )}
               </div>
 
               <div className="flex gap-3 pt-4">
                 <button
                   type="submit"
-                  disabled={loading}
+                  disabled={loading || formData.roleIds.length === 0}
                   className="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
                 >
                   {loading ? 'Salvando...' : 'Confirmar'}
