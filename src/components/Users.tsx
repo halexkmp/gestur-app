@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { userService } from '../services/userService';
 
 export default function Users() {
-  const { isAdmin } = useAuth();
+  const { isSuperAdmin } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [showForm, setShowForm] = useState(false);
@@ -125,7 +125,7 @@ export default function Users() {
     setShowForm(false);
   };
 
-  if (!isAdmin) {
+  if (!isSuperAdmin) {
     return (
       <div className="flex items-center justify-center h-[60vh]">
         <div className="text-center">

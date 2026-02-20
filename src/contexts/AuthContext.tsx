@@ -8,6 +8,9 @@ interface AuthContextType {
   signIn: (username: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   isAdmin: boolean;
+  isManager: boolean;
+  isSuperAdmin: boolean;
+  isHR: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -15,6 +18,11 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const roles = user?.roles.map(r => r.name) || [];
+  const isSuperAdmin = roles.includes('ADMIN');
+  const isManager = roles.includes('MANAGER');
+  const isHR = roles.includes('HUMAN_RESOURCES');
 
   useEffect(() => {
     const token = localStorage.getItem('auth_token');
@@ -58,7 +66,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loading,
     signIn,
     signOut,
-    isAdmin: user?.roles.some(role => role.name === 'ADMIN' || role.name === 'MANAGER') || false,
+    isAdmin: isSuperAdmin || isManager,
+    isManager,
+    isSuperAdmin,
+    isHR,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

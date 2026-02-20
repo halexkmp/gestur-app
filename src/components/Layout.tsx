@@ -21,10 +21,8 @@ interface LayoutProps {
 }
 
 export default function Layout({ children, currentPage, onNavigate }: LayoutProps) {
-  const { user, signOut, isAdmin } = useAuth();
+  const { user, signOut, isAdmin, isSuperAdmin, isHR } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-
-  const hasHR = user?.roles.some(r => r.name === 'HUMAN_RESOURCES') ?? false;
 
   const menuItems = [
     { id: 'sales', label: 'Nova Venda', icon: ShoppingCart, adminOnly: false },
@@ -34,12 +32,13 @@ export default function Layout({ children, currentPage, onNavigate }: LayoutProp
     { id: 'stock', label: 'Controle de Estoque', icon: Box, adminOnly: false },
     { id: 'reports', label: 'Relatórios', icon: TrendingUp, adminOnly: false },
     { id: 'rh', label: 'Recursos Humanos', icon: Users, adminOnly: false },
-    { id: 'users', label: 'Usuários', icon: UserCog, adminOnly: true },
+    { id: 'users', label: 'Usuários', icon: UserCog, adminOnly: false }, // Removed adminOnly to handle manually
     { id: 'audit', label: 'Auditoria', icon: FileText, adminOnly: true },
   ];
 
   const filteredMenuItems = menuItems.filter(item => {
-    if (item.id === 'rh') return isAdmin || hasHR;
+    if (item.id === 'rh') return isSuperAdmin || isHR;
+    if (item.id === 'users') return isSuperAdmin;
     return !item.adminOnly || isAdmin;
   });
 

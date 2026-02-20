@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Plus, Edit2, Trash2, ShieldAlert, FileText } from 'lucide-react';
+import { Plus, Edit2, Trash2, ShieldAlert, FileText, Users, DollarSign, Calendar } from 'lucide-react';
 import { Employee, SalaryAdvance, SalarySummaryResponse } from '../types';
 import { employeeService } from '../services/employeeService';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function HR() {
-  const { user } = useAuth();
-  const canAccess = useMemo(() => user?.roles.some(r => r.name === 'ADMIN' || r.name === 'HUMAN_RESOURCES') ?? false, [user]);
+  const { isSuperAdmin, isHR } = useAuth();
+  const canAccess = useMemo(() => isSuperAdmin || isHR, [isSuperAdmin, isHR]);
 
+  const [activeTab, setActiveTab] = useState<'employees' | 'advances'>('employees');
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -173,222 +174,277 @@ export default function HR() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8">
+    <div className="max-w-6xl mx-auto space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">Recursos Humanos</h1>
           <p className="text-gray-600 mt-1">Gerencie funcionários e adiantamentos salariais</p>
         </div>
+        {activeTab === 'employees' && (
+          <button
+            onClick={() => setShowEmployeeForm(true)}
+            className="w-full sm:w-auto bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition flex items-center justify-center gap-2"
+          >
+            <Plus className="w-5 h-5" />
+            Novo Funcionário
+          </button>
+        )}
+      </div>
+
+      {/* Tabs */}
+      <div className="flex border-b border-gray-200">
         <button
-          onClick={() => setShowEmployeeForm(true)}
-          className="w-full sm:w-auto bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition flex items-center justify-center gap-2"
+          onClick={() => setActiveTab('employees')}
+          className={`px-6 py-3 text-sm font-medium transition flex items-center gap-2 border-b-2 ${
+            activeTab === 'employees'
+              ? 'border-blue-600 text-blue-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+          }`}
         >
-          <Plus className="w-5 h-5" />
-          Novo Funcionário
+          <Users className="w-4 h-4" />
+          Funcionários
+        </button>
+        <button
+          onClick={() => setActiveTab('advances')}
+          className={`px-6 py-3 text-sm font-medium transition flex items-center gap-2 border-b-2 ${
+            activeTab === 'advances'
+              ? 'border-blue-600 text-blue-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+          }`}
+        >
+          <DollarSign className="w-4 h-4" />
+          Adiantamentos
         </button>
       </div>
 
-      {/* Employees table */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[700px]">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nome</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PIX</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Salário</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Status</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {employees.map(emp => (
-                <tr key={emp.id} className={!emp.active ? 'bg-gray-50' : ''}>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">{emp.name}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{emp.pix_key || '-'}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">R$ {Number(emp.salary).toFixed(2)}</td>
-                  <td className="px-6 py-4 whitespace-nowrap hidden md:table-cell">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${emp.active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                      {emp.active ? 'Ativo' : 'Inativo'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <div className="flex justify-end gap-2">
-                      <button onClick={() => startEditEmployee(emp)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Editar">
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-                      <button onClick={() => deleteEmployee(emp)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition" title="Excluir">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Salary advances */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-        <div className="flex flex-col md:flex-row md:items-end gap-3 md:gap-4">
-          <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Funcionário</label>
-            <select
-              value={advanceForm.employee_id}
-              onChange={(e) => setAdvanceForm({ ...advanceForm, employee_id: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="">Selecione...</option>
-              {employees.filter(e => e.active).map(e => (
-                <option key={e.id} value={e.id}>{e.name}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Valor</label>
-            <input
-              type="number"
-              step="0.01"
-              min="0"
-              value={advanceForm.amount}
-              onChange={(e) => setAdvanceForm({ ...advanceForm, amount: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-          <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Observação (opcional)</label>
-            <input
-              type="text"
-              value={advanceForm.note || ''}
-              onChange={(e) => setAdvanceForm({ ...advanceForm, note: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-          <div>
-            <button
-              onClick={submitAdvance}
-              disabled={!advanceForm.employee_id || !advanceForm.amount || advLoading}
-              className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition disabled:opacity-50"
-            >
-              {advLoading ? 'Salvando...' : 'Adicionar Adiantamento'}
-            </button>
-          </div>
-        </div>
-
-        {/* Report filters */}
-        <div className="mt-6 flex flex-col md:flex-row gap-3 md:items-end">
-          <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Relatório: Funcionário</label>
-            <select
-              value={reportEmployeeId}
-              onChange={(e) => setReportEmployeeId(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="">Todos</option>
-              {employees.map(e => (
-                <option key={e.id} value={e.id}>{e.name}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Mês</label>
-            <select
-              value={reportMonth}
-              onChange={(e) => setReportMonth(Number(e.target.value))}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
-                <option key={m} value={m}>{m.toString().padStart(2, '0')}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Ano</label>
-            <input
-              type="number"
-              value={reportYear}
-              onChange={(e) => setReportYear(Number(e.target.value))}
-              className="w-28 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-          <div>
-            <button onClick={() => { loadAdvances(); loadSummary(); }} className="px-4 py-2 bg-gray-100 rounded-lg hover:bg-gray-200 transition flex items-center gap-2">
-              <FileText className="w-4 h-4" />
-              Atualizar
-            </button>
-          </div>
-        </div>
-
-        {/* Minimalist report */}
-        <div className="mt-4 border-t pt-4">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-lg font-semibold text-gray-800">Relatório de Adiantamentos</h3>
-            <span className="text-sm text-gray-500">{reportMonth.toString().padStart(2, '0')}/{reportYear}</span>
-          </div>
-
+      {activeTab === 'employees' ? (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[600px]">
+            <table className="w-full min-w-[700px]">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Funcionário</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Valor</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Obs.</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nome</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PIX</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Salário</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Status</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {advLoading ? (
-                  <tr><td colSpan={4} className="px-4 py-3 text-center text-gray-500">Carregando...</td></tr>
-                ) : advances.length === 0 ? (
-                  <tr><td colSpan={4} className="px-4 py-3 text-center text-gray-500">Nenhum registro</td></tr>
+                {employees.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-10 text-center text-gray-500">
+                      Nenhum funcionário cadastrado
+                    </td>
+                  </tr>
                 ) : (
-                  advances.map(a => {
-                    const emp = employees.find(e => e.id === a.employee_id);
-                    return (
-                      <tr key={a.id}>
-                        <td className="px-4 py-2 text-sm text-gray-700">{new Date(a.created_at).toLocaleDateString()}</td>
-                        <td className="px-4 py-2 text-sm text-gray-700">{emp?.name || '-'}</td>
-                        <td className="px-4 py-2 text-sm text-gray-700">R$ {Number(a.amount).toFixed(2)}</td>
-                        <td className="px-4 py-2 text-sm text-gray-500">{a.note || '-'}</td>
-                      </tr>
-                    );
-                  })
+                  employees.map(emp => (
+                    <tr key={emp.id} className={!emp.active ? 'bg-gray-50' : ''}>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">{emp.name}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{emp.pix_key || '-'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">R$ {Number(emp.salary).toFixed(2)}</td>
+                      <td className="px-6 py-4 whitespace-nowrap hidden md:table-cell">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${emp.active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                          {emp.active ? 'Ativo' : 'Inativo'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <div className="flex justify-end gap-2">
+                          <button onClick={() => startEditEmployee(emp)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Editar">
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button onClick={() => deleteEmployee(emp)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition" title="Excluir">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
                 )}
               </tbody>
-              {!reportEmployeeId && advances.length > 0 && (
-                <tfoot className="bg-gray-50">
-                  <tr>
-                    <td className="px-4 py-2 text-right text-sm font-medium text-gray-700" colSpan={2}>Total</td>
-                    <td className="px-4 py-2 text-sm font-semibold text-gray-900">R$ {advances.reduce((s, a) => s + Number(a.amount), 0).toFixed(2)}</td>
-                    <td></td>
-                  </tr>
-                </tfoot>
-              )}
             </table>
           </div>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {/* Add advance form card */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div className="flex items-center gap-2 mb-4 text-gray-800 font-semibold">
+              <Plus className="w-5 h-5 text-blue-600" />
+              Novo Adiantamento
+            </div>
+            <div className="flex flex-col md:flex-row items-end gap-4">
+              <div className="flex-1 w-full">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Funcionário</label>
+                <select
+                  value={advanceForm.employee_id}
+                  onChange={(e) => setAdvanceForm({ ...advanceForm, employee_id: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">Selecione...</option>
+                  {employees.filter(e => e.active).map(e => (
+                    <option key={e.id} value={e.id}>{e.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="w-full md:w-48">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Valor</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-2 text-gray-400">R$</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={advanceForm.amount}
+                    onChange={(e) => setAdvanceForm({ ...advanceForm, amount: e.target.value })}
+                    className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+              <div className="flex-1 w-full">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Observação (opcional)</label>
+                <input
+                  type="text"
+                  placeholder="Ex: Ref. mês atual"
+                  value={advanceForm.note || ''}
+                  onChange={(e) => setAdvanceForm({ ...advanceForm, note: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              <button
+                onClick={submitAdvance}
+                disabled={!advanceForm.employee_id || !advanceForm.amount || advLoading}
+                className="w-full md:w-auto bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition disabled:opacity-50"
+              >
+                {advLoading ? 'Salvando...' : 'Lançar'}
+              </button>
+            </div>
+          </div>
 
-          {/* If a specific employee is selected, show salary summary */}
-          {reportEmployeeId && summary && (
-            <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="p-3 rounded-lg bg-gray-50 border">
-                <div className="text-xs text-gray-500">Salário Bruto</div>
-                <div className="text-lg font-semibold text-gray-800">R$ {Number(summary.gross_salary).toFixed(2)}</div>
+          {/* Report filters and table card */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div className="flex items-center gap-2 mb-4 text-gray-800 font-semibold">
+              <FileText className="w-5 h-5 text-blue-600" />
+              Relatório de Adiantamentos
+            </div>
+            
+            <div className="flex flex-wrap gap-4 items-end mb-6 pb-6 border-b border-gray-100">
+              <div className="flex-1 min-w-[200px]">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Filtrar por Funcionário</label>
+                <select
+                  value={reportEmployeeId}
+                  onChange={(e) => setReportEmployeeId(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">Todos os funcionários</option>
+                  {employees.map(e => (
+                    <option key={e.id} value={e.id}>{e.name}</option>
+                  ))}
+                </select>
               </div>
-              <div className="p-3 rounded-lg bg-gray-50 border">
-                <div className="text-xs text-gray-500">Adiantamentos</div>
-                <div className="text-lg font-semibold text-gray-800">R$ {Number(summary.advances_total).toFixed(2)}</div>
+              <div className="w-32">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Mês</label>
+                <select
+                  value={reportMonth}
+                  onChange={(e) => setReportMonth(Number(e.target.value))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
+                    <option key={m} value={m}>
+                      {new Date(2000, m - 1).toLocaleString('pt-BR', { month: 'long' })}
+                    </option>
+                  ))}
+                </select>
               </div>
-              <div className="p-3 rounded-lg bg-gray-50 border">
-                <div className="text-xs text-gray-500">Salário Líquido</div>
-                <div className="text-lg font-semibold text-gray-800">R$ {Number(summary.net_salary).toFixed(2)}</div>
+              <div className="w-24">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Ano</label>
+                <input
+                  type="number"
+                  value={reportYear}
+                  onChange={(e) => setReportYear(Number(e.target.value))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
               </div>
             </div>
-          )}
+
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[600px]">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Funcionário</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Valor</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Obs.</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {advLoading ? (
+                    <tr><td colSpan={4} className="px-4 py-8 text-center text-gray-500">Carregando...</td></tr>
+                  ) : advances.length === 0 ? (
+                    <tr><td colSpan={4} className="px-4 py-8 text-center text-gray-500">Nenhum adiantamento no período</td></tr>
+                  ) : (
+                    advances.map(a => {
+                      const emp = employees.find(e => e.id === a.employee_id);
+                      return (
+                        <tr key={a.id} className="hover:bg-gray-50 transition">
+                          <td className="px-4 py-3 text-sm text-gray-700">{new Date(a.created_at).toLocaleDateString('pt-BR')}</td>
+                          <td className="px-4 py-3 text-sm font-medium text-gray-900">{emp?.name || 'Desconhecido'}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700 font-semibold">R$ {Number(a.amount).toFixed(2)}</td>
+                          <td className="px-4 py-3 text-sm text-gray-500 italic">{a.note || '-'}</td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+                {!reportEmployeeId && advances.length > 0 && (
+                  <tfoot className="bg-gray-50">
+                    <tr>
+                      <td className="px-4 py-3 text-right text-sm font-medium text-gray-700" colSpan={2}>Total Acumulado</td>
+                      <td className="px-4 py-3 text-sm font-bold text-blue-600">R$ {advances.reduce((s, a) => s + Number(a.amount), 0).toFixed(2)}</td>
+                      <td></td>
+                    </tr>
+                  </tfoot>
+                )}
+              </table>
+            </div>
+
+            {/* If a specific employee is selected, show salary summary */}
+            {reportEmployeeId && summary && (
+              <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-4 border-t border-gray-100 pt-6">
+                <div className="p-4 rounded-xl bg-gray-50 border border-gray-100 flex items-center gap-4">
+                  <div className="p-2 bg-blue-100 rounded-lg">
+                    <DollarSign className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-medium text-gray-500 uppercase">Salário Bruto</div>
+                    <div className="text-lg font-bold text-gray-800">R$ {Number(summary.gross_salary).toFixed(2)}</div>
+                  </div>
+                </div>
+                <div className="p-4 rounded-xl bg-orange-50 border border-orange-100 flex items-center gap-4">
+                  <div className="p-2 bg-orange-100 rounded-lg">
+                    <Calendar className="w-5 h-5 text-orange-600" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-medium text-orange-500 uppercase">Total Adiantamentos</div>
+                    <div className="text-lg font-bold text-orange-700">R$ {Number(summary.advances_total).toFixed(2)}</div>
+                  </div>
+                </div>
+                <div className="p-4 rounded-xl bg-green-50 border border-green-100 flex items-center gap-4">
+                  <div className="p-2 bg-green-100 rounded-lg">
+                    <DollarSign className="w-5 h-5 text-green-600" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-medium text-green-500 uppercase">Salário Líquido</div>
+                    <div className="text-xl font-bold text-green-700">R$ {Number(summary.net_salary).toFixed(2)}</div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Modal: employee form */}
       {showEmployeeForm && (
