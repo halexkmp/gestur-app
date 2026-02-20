@@ -10,6 +10,7 @@ import Reports from './components/Reports';
 import StockControl from './components/StockControl';
 import Users from './components/Users';
 import Audit from './components/Audit';
+import HR from './components/HR.tsx';
 
 function AppContent() {
   const { user, loading } = useAuth();
@@ -45,6 +46,8 @@ function AppContent() {
         return <Users />;
       case 'audit':
         return <Audit />;
+      case 'rh':
+        return <HR />;
       default:
         return <Sales />;
     }

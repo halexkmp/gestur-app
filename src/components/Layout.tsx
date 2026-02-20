@@ -24,6 +24,8 @@ export default function Layout({ children, currentPage, onNavigate }: LayoutProp
   const { user, signOut, isAdmin } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  const hasHR = user?.roles.some(r => r.name === 'HUMAN_RESOURCES') ?? false;
+
   const menuItems = [
     { id: 'sales', label: 'Nova Venda', icon: ShoppingCart, adminOnly: false },
     { id: 'products', label: 'Produtos', icon: Package, adminOnly: true },
@@ -31,11 +33,15 @@ export default function Layout({ children, currentPage, onNavigate }: LayoutProp
     { id: 'business', label: 'Empresas Parceiras', icon: Building2, adminOnly: true },
     { id: 'stock', label: 'Controle de Estoque', icon: Box, adminOnly: false },
     { id: 'reports', label: 'Relatórios', icon: TrendingUp, adminOnly: false },
+    { id: 'rh', label: 'Recursos Humanos', icon: Users, adminOnly: false },
     { id: 'users', label: 'Usuários', icon: UserCog, adminOnly: true },
     { id: 'audit', label: 'Auditoria', icon: FileText, adminOnly: true },
   ];
 
-  const filteredMenuItems = menuItems.filter(item => !item.adminOnly || isAdmin);
+  const filteredMenuItems = menuItems.filter(item => {
+    if (item.id === 'rh') return isAdmin || hasHR;
+    return !item.adminOnly || isAdmin;
+  });
 
   return (
     <div className="min-h-screen bg-gray-50">

@@ -1,0 +1,259 @@
+{
+  "CreateEmployeeRequest": {
+    "properties": {
+      "name": {
+        "type": "string",
+        "maxLength": 255,
+        "title": "Name"
+      },
+      "pix_key": {
+        "anyOf": [
+          {
+            "type": "string",
+            "maxLength": 255
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Pix Key"
+      },
+      "salary": {
+        "type": "number",
+        "minimum": 0.0,
+        "title": "Salary"
+      },
+      "active": {
+        "type": "boolean",
+        "title": "Active",
+        "default": true
+      }
+    },
+    "type": "object",
+    "required": [
+      "name",
+      "salary"
+    ],
+    "title": "CreateEmployeeRequest"
+  },
+  "CreateSalaryAdvanceRequest": {
+    "properties": {
+      "employee_id": {
+        "type": "string",
+        "format": "uuid",
+        "title": "Employee Id"
+      },
+      "amount": {
+        "anyOf": [
+          {
+            "type": "number",
+            "exclusiveMinimum": 0.0
+          },
+          {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+          }
+        ],
+        "title": "Amount"
+      },
+      "note": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Note"
+      }
+    },
+    "type": "object",
+    "required": [
+      "employee_id",
+      "amount"
+    ],
+    "title": "CreateSalaryAdvanceRequest"
+  },
+  "EmployeeResponse": {
+    "properties": {
+      "id": {
+        "type": "string",
+        "format": "uuid",
+        "title": "Id"
+      },
+      "name": {
+        "type": "string",
+        "title": "Name"
+      },
+      "pix_key": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Pix Key"
+      },
+      "salary": {
+        "type": "number",
+        "title": "Salary"
+      },
+      "active": {
+        "type": "boolean",
+        "title": "Active"
+      }
+    },
+    "type": "object",
+    "required": [
+      "id",
+      "name",
+      "pix_key",
+      "salary",
+      "active"
+    ],
+    "title": "EmployeeResponse"
+  },
+  "EmployeeUpdate": {
+    "properties": {
+      "name": {
+        "anyOf": [
+          {
+            "type": "string",
+            "maxLength": 255
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Name"
+      },
+      "pix_key": {
+        "anyOf": [
+          {
+            "type": "string",
+            "maxLength": 255
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Pix Key"
+      },
+      "salary": {
+        "anyOf": [
+          {
+            "type": "number",
+            "minimum": 0.0
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Salary"
+      },
+      "active": {
+        "anyOf": [
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Active"
+      }
+    },
+    "type": "object",
+    "title": "EmployeeUpdate"
+  },
+  "SalaryAdvanceItem": {
+    "properties": {
+      "id": {
+        "type": "string",
+        "format": "uuid",
+        "title": "Id"
+      },
+      "amount": {
+        "type": "string",
+        "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+        "title": "Amount"
+      },
+      "employee_id": {
+        "type": "string",
+        "format": "uuid",
+        "title": "Employee Id"
+      },
+      "created_at": {
+        "type": "string",
+        "format": "date-time",
+        "title": "Created At"
+      },
+      "note": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Note"
+      }
+    },
+    "type": "object",
+    "required": [
+      "id",
+      "amount",
+      "employee_id",
+      "created_at"
+    ],
+    "title": "SalaryAdvanceItem"
+  },
+  "SalaryAdvanceResponse": {
+    "properties": {
+      "id": {
+        "type": "string",
+        "format": "uuid",
+        "title": "Id"
+      },
+      "employee_id": {
+        "type": "string",
+        "format": "uuid",
+        "title": "Employee Id"
+      },
+      "amount": {
+        "type": "string",
+        "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+        "title": "Amount"
+      },
+      "created_at": {
+        "type": "string",
+        "format": "date-time",
+        "title": "Created At"
+      },
+      "note": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Note"
+      }
+    },
+    "type": "object",
+    "required": [
+      "id",
+      "employee_id",
+      "amount",
+      "created_at",
+      "note"
+    ],
+    "title": "SalaryAdvanceResponse"
+  }
+}
