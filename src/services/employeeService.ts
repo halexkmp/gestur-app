@@ -14,6 +14,8 @@ export const employeeService = {
     api.get<SalaryAdvance[]>('/employees/salary-advances', { params }),
   createSalaryAdvance: (payload: CreateSalaryAdvanceRequest) =>
     api.post<SalaryAdvance>('/employees/salary-advances', payload),
+  deleteSalaryAdvance: (id: string) =>
+    api.delete(`/employees/salary-advances/${id}`),
 
   // Salary Summary report (per employee)
   getSalarySummary: (employee_id: string, params?: { month?: number; year?: number }) =>

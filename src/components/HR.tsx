@@ -20,7 +20,15 @@ export default function HR() {
     pix_key: '' as string | null,
     salary: 0,
     active: true,
+    start_date: '' as string | null,
   });
+
+  // Report filters
+  const now = new Date();
+  const [reportEmployeeId, setReportEmployeeId] = useState<string>('');
+  const [reportMonth, setReportMonth] = useState<number | undefined>(now.getMonth() + 1);
+  const [reportYear, setReportYear] = useState<number>(now.getFullYear());
+  const [summary, setSummary] = useState<SalarySummaryResponse | null>(null);
 
   // Salary advances state
   const [advances, setAdvances] = useState<SalaryAdvance[]>([]);
@@ -29,14 +37,9 @@ export default function HR() {
     employee_id: '',
     amount: '',
     note: '' as string | null,
+    advance_date: now.toISOString().split('T')[0],
+    times: 1,
   });
-
-  // Report filters
-  const now = new Date();
-  const [reportEmployeeId, setReportEmployeeId] = useState<string>('');
-  const [reportMonth, setReportMonth] = useState<number>(now.getMonth() + 1);
-  const [reportYear, setReportYear] = useState<number>(now.getFullYear());
-  const [summary, setSummary] = useState<SalarySummaryResponse | null>(null);
 
   useEffect(() => {
     loadEmployees();
@@ -55,7 +58,7 @@ export default function HR() {
   const loadAdvances = async () => {
     setAdvLoading(true);
     try {
-      const data = await employeeService.listSalaryAdvances({ employee_id: reportEmployeeId || undefined, month: reportMonth, year: reportYear });
+      const data = await employeeService.listSalaryAdvances({ employee_id: reportEmployeeId || undefined, month: reportMonth || undefined, year: reportYear });
       setAdvances(data);
     } catch (e) {
       console.error('Failed to load advances', e);
@@ -74,6 +77,7 @@ export default function HR() {
           pix_key: employeeForm.pix_key || null,
           salary: Number(employeeForm.salary),
           active: employeeForm.active,
+          start_date: employeeForm.start_date || null,
         });
       } else {
         await employeeService.create({
@@ -81,6 +85,7 @@ export default function HR() {
           pix_key: employeeForm.pix_key || null,
           salary: Number(employeeForm.salary),
           active: employeeForm.active,
+          start_date: employeeForm.start_date || null,
         });
       }
       await loadEmployees();
@@ -94,12 +99,19 @@ export default function HR() {
   };
 
   const startEditEmployee = (emp: Employee) => {
+    let formattedDate = '';
+    if (emp.start_date) {
+      // Ensure date is in YYYY-MM-DD format for the input type="date"
+      formattedDate = emp.start_date.split('T')[0];
+    }
+
     setEditingEmployee(emp);
     setEmployeeForm({
       name: emp.name,
       pix_key: emp.pix_key ?? '',
       salary: emp.salary,
       active: emp.active,
+      start_date: formattedDate,
     });
     setShowEmployeeForm(true);
   };
@@ -116,7 +128,7 @@ export default function HR() {
   };
 
   const resetEmployeeForm = () => {
-    setEmployeeForm({ name: '', pix_key: '', salary: 0, active: true });
+    setEmployeeForm({ name: '', pix_key: '', salary: 0, active: true, start_date: '' });
     setEditingEmployee(null);
     setShowEmployeeForm(false);
   };
@@ -129,12 +141,35 @@ export default function HR() {
         employee_id: advanceForm.employee_id,
         amount: Number(advanceForm.amount),
         note: advanceForm.note || undefined,
+        advance_date: advanceForm.advance_date || undefined,
+        times: Number(advanceForm.times),
       });
-      setAdvanceForm({ employee_id: '', amount: '', note: '' });
+      setAdvanceForm({ 
+        employee_id: '', 
+        amount: '', 
+        note: '', 
+        advance_date: new Date().toISOString().split('T')[0], 
+        times: 1 
+      });
       await loadAdvances();
     } catch (e) {
       console.error('Failed to create salary advance', e);
       alert('Erro ao criar adiantamento');
+    } finally {
+      setAdvLoading(false);
+    }
+  };
+
+  const deleteAdvance = async (advance: SalaryAdvance) => {
+    if (!confirm(`Deseja excluir este adiantamento no valor de R$ ${Number(advance.amount).toFixed(2)}?`)) return;
+    setAdvLoading(true);
+    try {
+      await employeeService.deleteSalaryAdvance(advance.id);
+      await loadAdvances();
+      await loadSummary();
+    } catch (e) {
+      console.error('Failed to delete salary advance', e);
+      alert('Erro ao excluir adiantamento');
     } finally {
       setAdvLoading(false);
     }
@@ -146,7 +181,7 @@ export default function HR() {
       return;
     }
     try {
-      const data = await employeeService.getSalarySummary(reportEmployeeId, { month: reportMonth, year: reportYear });
+      const data = await employeeService.getSalarySummary(reportEmployeeId, { month: reportMonth || undefined, year: reportYear });
       setSummary(data);
     } catch (e) {
       console.error('Failed to load summary', e);
@@ -224,6 +259,7 @@ export default function HR() {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nome</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Início</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PIX</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Salário</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Status</th>
@@ -242,6 +278,9 @@ export default function HR() {
                     <tr key={emp.id} className={!emp.active ? 'bg-gray-50' : ''}>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">{emp.name}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                        {emp.start_date ? new Date(emp.start_date + 'T12:00:00').toLocaleDateString('pt-BR') : '-'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{emp.pix_key || '-'}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">R$ {Number(emp.salary).toFixed(2)}</td>
@@ -275,8 +314,8 @@ export default function HR() {
               <Plus className="w-5 h-5 text-blue-600" />
               Novo Adiantamento
             </div>
-            <div className="flex flex-col md:flex-row items-end gap-4">
-              <div className="flex-1 w-full">
+            <div className="flex flex-col lg:flex-row items-end gap-4">
+              <div className="flex-[2] w-full">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Funcionário</label>
                 <select
                   value={advanceForm.employee_id}
@@ -289,7 +328,16 @@ export default function HR() {
                   ))}
                 </select>
               </div>
-              <div className="w-full md:w-48">
+              <div className="w-full lg:w-40">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Data de Início</label>
+                <input
+                  type="date"
+                  value={advanceForm.advance_date || ''}
+                  onChange={(e) => setAdvanceForm({ ...advanceForm, advance_date: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              <div className="w-full lg:w-32">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Valor</label>
                 <div className="relative">
                   <span className="absolute left-3 top-2 text-gray-400">R$</span>
@@ -303,7 +351,18 @@ export default function HR() {
                   />
                 </div>
               </div>
-              <div className="flex-1 w-full">
+              <div className="w-full lg:w-24">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Vezes</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="12"
+                  value={advanceForm.times}
+                  onChange={(e) => setAdvanceForm({ ...advanceForm, times: Number(e.target.value) })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              <div className="flex-[2] w-full">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Observação (opcional)</label>
                 <input
                   type="text"
@@ -344,18 +403,22 @@ export default function HR() {
                   ))}
                 </select>
               </div>
-              <div className="w-32">
+              <div className="w-40">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Mês</label>
                 <select
-                  value={reportMonth}
-                  onChange={(e) => setReportMonth(Number(e.target.value))}
+                  value={reportMonth || ''}
+                  onChange={(e) => setReportMonth(e.target.value ? Number(e.target.value) : undefined)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
-                  {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
-                    <option key={m} value={m}>
-                      {new Date(2000, m - 1).toLocaleString('pt-BR', { month: 'long' })}
-                    </option>
-                  ))}
+                  <option value="">Todos os meses</option>
+                  {Array.from({ length: 12 }, (_, i) => i + 1).map(m => {
+                    const monthName = new Date(2000, m - 1).toLocaleString('pt-BR', { month: 'long' });
+                    return (
+                      <option key={m} value={m}>
+                        {monthName.charAt(0).toUpperCase() + monthName.slice(1)}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
               <div className="w-24">
@@ -373,26 +436,36 @@ export default function HR() {
               <table className="w-full min-w-[600px]">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lançamento</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Referência</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Funcionário</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Valor</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vezes</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Obs.</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {advLoading ? (
-                    <tr><td colSpan={4} className="px-4 py-8 text-center text-gray-500">Carregando...</td></tr>
+                    <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-500">Carregando...</td></tr>
                   ) : advances.length === 0 ? (
-                    <tr><td colSpan={4} className="px-4 py-8 text-center text-gray-500">Nenhum adiantamento no período</td></tr>
+                    <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-500">Nenhum adiantamento no período</td></tr>
                   ) : (
                     advances.map(a => {
                       const emp = employees.find(e => e.id === a.employee_id);
                       return (
                         <tr key={a.id} className="hover:bg-gray-50 transition">
                           <td className="px-4 py-3 text-sm text-gray-700">{new Date(a.created_at).toLocaleDateString('pt-BR')}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700">{a.advance_date ? new Date(a.advance_date + 'T12:00:00').toLocaleDateString('pt-BR') : '-'}</td>
                           <td className="px-4 py-3 text-sm font-medium text-gray-900">{emp?.name || 'Desconhecido'}</td>
                           <td className="px-4 py-3 text-sm text-gray-700 font-semibold">R$ {Number(a.amount).toFixed(2)}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700">{a.times || 1}</td>
                           <td className="px-4 py-3 text-sm text-gray-500 italic">{a.note || '-'}</td>
+                          <td className="px-4 py-3 text-sm text-right font-medium">
+                            <button onClick={() => deleteAdvance(a)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition" title="Excluir">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </td>
                         </tr>
                       );
                     })
@@ -401,9 +474,9 @@ export default function HR() {
                 {!reportEmployeeId && advances.length > 0 && (
                   <tfoot className="bg-gray-50">
                     <tr>
-                      <td className="px-4 py-3 text-right text-sm font-medium text-gray-700" colSpan={2}>Total Acumulado</td>
+                      <td className="px-4 py-3 text-right text-sm font-medium text-gray-700" colSpan={3}>Total Acumulado</td>
                       <td className="px-4 py-3 text-sm font-bold text-blue-600">R$ {advances.reduce((s, a) => s + Number(a.amount), 0).toFixed(2)}</td>
-                      <td></td>
+                      <td colSpan={3}></td>
                     </tr>
                   </tfoot>
                 )}
@@ -468,6 +541,15 @@ export default function HR() {
                   type="text"
                   value={employeeForm.pix_key || ''}
                   onChange={(e) => setEmployeeForm({ ...employeeForm, pix_key: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Data de Início</label>
+                <input
+                  type="date"
+                  value={employeeForm.start_date || ''}
+                  onChange={(e) => setEmployeeForm({ ...employeeForm, start_date: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>

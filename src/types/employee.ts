@@ -4,6 +4,7 @@ export interface Employee {
   pix_key?: string | null;
   salary: number;
   active: boolean;
+  start_date?: string | null; // ISO date
 }
 
 export interface CreateEmployeeRequest {
@@ -11,6 +12,7 @@ export interface CreateEmployeeRequest {
   pix_key?: string | null;
   salary: number;
   active?: boolean;
+  start_date?: string | null; // ISO date
 }
 
 export interface UpdateEmployeeRequest {
@@ -18,6 +20,7 @@ export interface UpdateEmployeeRequest {
   pix_key?: string | null;
   salary?: number;
   active?: boolean;
+  start_date?: string | null; // ISO date
 }
 
 export interface SalaryAdvance {
@@ -25,13 +28,17 @@ export interface SalaryAdvance {
   employee_id: string;
   amount: number | string;
   created_at: string; // ISO date
+  advance_date?: string | null; // ISO date
   note?: string | null;
+  times?: number;
 }
 
 export interface CreateSalaryAdvanceRequest {
   employee_id: string;
   amount: number | string;
+  advance_date?: string | null; // ISO date
   note?: string | null;
+  times?: number;
 }
 
 export interface SalarySummaryResponse {
