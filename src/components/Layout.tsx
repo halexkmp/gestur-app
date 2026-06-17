@@ -11,7 +11,8 @@ import {
   Building2,
   FileText,
   Box,
-  UserCog
+  UserCog,
+  Clock
 } from 'lucide-react';
 
 interface LayoutProps {
@@ -21,7 +22,7 @@ interface LayoutProps {
 }
 
 export default function Layout({ children, currentPage, onNavigate }: LayoutProps) {
-  const { user, signOut, isAdmin, isSuperAdmin, isHR } = useAuth();
+  const { user, signOut, isAdmin, isSuperAdmin, isHR, isEmployee } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const menuItems = [
@@ -32,13 +33,22 @@ export default function Layout({ children, currentPage, onNavigate }: LayoutProp
     { id: 'stock', label: 'Controle de Estoque', icon: Box, adminOnly: false },
     { id: 'reports', label: 'Relatórios', icon: TrendingUp, adminOnly: false },
     { id: 'rh', label: 'Recursos Humanos', icon: Users, adminOnly: false },
+    { id: 'journey', label: 'Minha Jornada', icon: Clock, adminOnly: false },
+    { id: 'admin-journey', label: 'Gerenciar Jornadas', icon: Clock, adminOnly: true },
     { id: 'users', label: 'Usuários', icon: UserCog, adminOnly: false }, // Removed adminOnly to handle manually
     { id: 'audit', label: 'Auditoria', icon: FileText, adminOnly: true },
   ];
 
   const filteredMenuItems = menuItems.filter(item => {
+    // Specific rule: If user is ONLY an employee, they only see the journey menu
+    if (isEmployee && user?.roles.length === 1) {
+      return item.id === 'journey';
+    }
+
     if (item.id === 'rh') return isSuperAdmin || isHR;
     if (item.id === 'users') return isSuperAdmin;
+    if (item.id === 'journey') return isEmployee;
+    if (item.id === 'admin-journey') return isSuperAdmin || isHR;
     return !item.adminOnly || isAdmin;
   });
 
@@ -61,12 +71,7 @@ export default function Layout({ children, currentPage, onNavigate }: LayoutProp
       } lg:translate-x-0 w-64`}>
         <div className="p-6 border-b border-gray-200">
           <h1 className="text-2xl font-bold text-gray-800">BeachDunnas</h1>
-          <p className="text-sm text-gray-600 mt-1">{user.name}</p>
-          <span className={`inline-block mt-2 px-2 py-1 text-xs rounded-full ${
-            isAdmin ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'
-          }`}>
-            {isAdmin ? 'Administrador' : 'Operador'}
-          </span>
+          <p className="text-sm text-gray-600 mt-1">{user?.name}</p>
         </div>
 
         <nav className="p-4 space-y-2">

@@ -1,0 +1,73 @@
+import { renderHook, act } from '@testing-library/react';
+import { useJourney } from './useJourney';
+import { journeyService } from '../services/journeyService';
+import { vi, describe, it, expect, beforeEach } from 'vitest';
+
+vi.mock('../services/journeyService');
+
+describe('useJourney', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('should fetch history', async () => {
+    const mockHistory = [
+      { id: '1', user_id: 'u1', timestamp: '2024-01-01T10:00:00Z', latitude: 10, longitude: 20 },
+      { id: '2', user_id: 'u1', timestamp: '2024-01-01T11:00:00Z', latitude: 10, longitude: 20 },
+    ];
+    vi.mocked(journeyService.getHistory).mockResolvedValue(mockHistory);
+
+    const { result } = renderHook(() => useJourney());
+
+    await act(async () => {
+      await result.current.fetchHistory();
+    });
+
+    expect(result.current.history).toEqual([mockHistory[0], mockHistory[1]]); // Sorted by timestamp desc (T11 then T10)
+    expect(result.current.loading).toBe(false);
+  });
+
+  it('should handle registration success', async () => {
+    const mockPosition = {
+      coords: { latitude: 10, longitude: 20 },
+    };
+    const mockGeolocation = {
+      getCurrentPosition: vi.fn().mockImplementation((success) => success(mockPosition)),
+    };
+    vi.stubGlobal('navigator', { geolocation: mockGeolocation });
+
+    const mockResponse = { id: '1', user_id: 'u1', timestamp: '2024-01-01', latitude: 10, longitude: 20 };
+    vi.mocked(journeyService.register).mockResolvedValue(mockResponse);
+    vi.mocked(journeyService.getHistory).mockResolvedValue([mockResponse]);
+
+    const { result } = renderHook(() => useJourney());
+
+    let regResult;
+    await act(async () => {
+      regResult = await result.current.registerJourney();
+    });
+
+    expect(regResult).toEqual(mockResponse);
+    expect(journeyService.register).toHaveBeenCalledWith({ latitude: 10, longitude: 20 });
+    expect(result.current.error).toBe(null);
+  });
+
+  it('should handle registration geolocation error', async () => {
+    const mockGeolocation = {
+      getCurrentPosition: vi.fn().mockImplementation((_, error) => error({ code: 1, PERMISSION_DENIED: 1 })),
+    };
+    vi.stubGlobal('navigator', { geolocation: mockGeolocation });
+
+    const { result } = renderHook(() => useJourney());
+
+    await act(async () => {
+      try {
+        await result.current.registerJourney();
+      } catch (e) {
+        // expected
+      }
+    });
+
+    expect(result.current.error).toBe('Location permission denied. Please enable location access.');
+  });
+});

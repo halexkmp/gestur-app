@@ -11,6 +11,8 @@ import StockControl from './components/StockControl';
 import Users from './components/Users';
 import Audit from './components/Audit';
 import HR from './components/HR.tsx';
+import { EmployeeJourney } from './components/Journey/EmployeeJourney';
+import { AdminJourney } from './components/Journey/AdminJourney';
 
 function AppContent() {
   const { user, loading } = useAuth();
@@ -48,6 +50,10 @@ function AppContent() {
         return <Audit />;
       case 'rh':
         return <HR />;
+      case 'journey':
+        return <EmployeeJourney />;
+      case 'admin-journey':
+        return <AdminJourney />;
       default:
         return <Sales />;
     }
