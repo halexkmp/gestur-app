@@ -15,8 +15,20 @@ import { EmployeeJourney } from './components/Journey/EmployeeJourney';
 import { AdminJourney } from './components/Journey/AdminJourney';
 
 function AppContent() {
-  const { user, loading } = useAuth();
-  const [currentPage, setCurrentPage] = useState('sales');
+  const { user, loading, isEmployee } = useAuth();
+  
+  // Calculate the initial page: if it's a pure employee, start on 'journey', otherwise 'sales'
+  const getInitialPage = () => {
+    if (user && isEmployee && user.roles.length === 1) {
+      return 'journey';
+    }
+    return 'sales';
+  };
+
+  const [currentPage, setCurrentPage] = useState(getInitialPage);
+
+  // Sync state if user changes (e.g. login/logout) and we are not on a valid page for them
+  // We use the `key` prop on AppContent in the parent component to reset this state automatically when the user changes.
 
   if (loading) {
     return (
@@ -67,8 +79,10 @@ function AppContent() {
 }
 
 function App() {
+  const { user } = useAuth();
+  
   return (
-    <AppContent />
+    <AppContent key={user?.id || 'guest'} />
   );
 }
 

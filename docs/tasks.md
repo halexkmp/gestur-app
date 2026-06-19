@@ -18,6 +18,7 @@
 - [x] T4.1: Update User creation/edit UI to include "EMPLOYEE" role (Plan: P4.1, Req: R4)
 - [x] T4.2: Implement role-based route protection for Journey module (Plan: P4.2, Req: R5)
 - [x] T4.3: Implement restricted menu visibility for pure "EMPLOYEE" users (Plan: P4.3, Req: R4)
+- [x] T4.4: Implement automatic redirection to "My Journey" for pure employees (Plan: P4.4, Req: R4)
 
 ## Phase 5: Verification (Infra)
 - [x] T5.1: Write unit tests for `journeyService.ts` (Plan: P5.1, Req: R1, R2, R3)

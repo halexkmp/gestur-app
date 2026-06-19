@@ -31,6 +31,7 @@ The Journey Registry feature allows employees to record their work shifts by cap
   - WHEN creating or updating a user THEN the system SHALL allow selecting the "EMPLOYEE" role (or equivalent new profile).
   - WHEN a user has the "EMPLOYEE" role THEN they SHALL have access to the journey registration UI.
   - WHEN a user has ONLY the "EMPLOYEE" role THEN the system SHALL only display the "My Journey" (Minha Jornada) menu.
+  - WHEN a user has ONLY the "EMPLOYEE" role THEN the system SHALL automatically redirect them to the "My Journey" (Minha Jornada) screen after login.
   - WHEN a user has multiple roles including "EMPLOYEE" THEN the system SHALL follow standard role-based visibility rules for all assigned roles.
 
 ### 5. Security and Permissions

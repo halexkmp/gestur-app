@@ -27,6 +27,8 @@
 - **P4.2: Access Control**: Ensure only users with appropriate roles can access their respective journey UIs.
 - **P4.3: Menu Visibility**: Restrict navigation menu for users with only the "EMPLOYEE" role.
   - Logic: If roles = ["EMPLOYEE"], show only "journey" menu item.
+- **P4.4: Default Page Redirection**: Ensure pure "EMPLOYEE" users land on the Journey page after login.
+  - Logic: If user has only "EMPLOYEE" role, set default state of `currentPage` to "journey".
 
 ## Phase 5: Verification
 - **P5.1: Unit Tests**: Test `journeyService` and `useJourney` hook.
