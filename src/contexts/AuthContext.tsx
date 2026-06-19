@@ -11,6 +11,7 @@ interface AuthContextType {
   isManager: boolean;
   isSuperAdmin: boolean;
   isHR: boolean;
+  isEmployee: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -23,6 +24,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const isSuperAdmin = roles.includes('ADMIN');
   const isManager = roles.includes('MANAGER');
   const isHR = roles.includes('HUMAN_RESOURCES');
+  const isEmployee = roles.includes('EMPLOYEE');
 
   useEffect(() => {
     const token = localStorage.getItem('auth_token');
@@ -70,6 +72,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isManager,
     isSuperAdmin,
     isHR,
+    isEmployee,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
