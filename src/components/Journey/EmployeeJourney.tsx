@@ -157,16 +157,12 @@ export const EmployeeJourney: React.FC = () => {
         )}
 
         <div className="mb-4 rounded-lg border border-dashed border-gray-300 p-4">
-          <p className="mb-2 flex items-center gap-2 font-semibold text-gray-700">
-            <Camera size={18} className="text-blue-600" />
-            Selfie obrigatória
-          </p>
 
           <button
             type="button"
             onClick={handleOpenCamera}
             disabled={loading || cameraLoading}
-            className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300"
+            className="inline-flex items-center gap-5 rounded-md bg-blue-600 px-16 py-2 font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300"
           >
             <Camera size={16} />
             {cameraLoading ? 'Abrindo câmera...' : selfie ? 'Tirar nova selfie' : 'Abrir câmera'}
@@ -181,12 +177,13 @@ export const EmployeeJourney: React.FC = () => {
                   onClick={handleCaptureSelfie}
                   className="rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
                 >
-                  Capturar selfie
+                  Capturar
+                  Capturar
                 </button>
                 <button
                   type="button"
                   onClick={stopCamera}
-                  className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
+                  className="rounded-md bg-red-600 text-white border-gray-300 px-4 py-2 text-sm font-medium hover:bg-gray-100"
                 >
                   Cancelar
                 </button>
@@ -197,7 +194,7 @@ export const EmployeeJourney: React.FC = () => {
           <canvas ref={canvasRef} className="hidden" />
 
           <p className="mt-2 text-sm text-gray-500">
-            A selfie deve ser tirada pela câmera do dispositivo.
+            Faça sua selfie para validar seu registro.
           </p>
           {selfie && <p className="mt-1 text-sm text-green-700">Selfie capturada com sucesso.</p>}
         </div>
@@ -216,7 +213,7 @@ export const EmployeeJourney: React.FC = () => {
           ) : (
             <>
               <MapPin size={24} />
-              Registrar Ponto Agora
+              Registrar Ponto
             </>
           )}
         </button>
