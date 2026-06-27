@@ -24,9 +24,34 @@ export const EmployeeJourney: React.FC = () => {
 
   useEffect(() => () => stopCamera(), [stopCamera]);
 
+  useEffect(() => {
+    if (!isCameraOpen) return;
+
+    const video = videoRef.current;
+    const stream = streamRef.current;
+
+    if (!video || !stream) return;
+
+    video.srcObject = stream;
+
+    const handleLoaded = async () => {
+      try {
+        await video.play();
+      } catch (err) {
+        console.error(err);
+      }
+    };
+
+    video.onloadedmetadata = handleLoaded;
+
+    return () => {
+      video.onloadedmetadata = null;
+    };
+  }, [isCameraOpen]);
+
   const handleOpenCamera = async (): Promise<void> => {
     if (!navigator.mediaDevices?.getUserMedia) {
-      setSelfieError('Your device does not support camera capture.');
+      setSelfieError('Seu dispositivo não suporta câmera.');
       return;
     }
 
@@ -37,25 +62,27 @@ export const EmployeeJourney: React.FC = () => {
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user' },
+        video: {
+          facingMode: "user",
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
         audio: false,
       });
 
       streamRef.current = stream;
-      setIsCameraOpen(true);
 
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-      }
-    } catch {
-      setSelfieError('Camera access was denied. Please allow camera permission to continue.');
+      // Apenas abre o componente
+      setIsCameraOpen(true);
+    } catch (err) {
+      setSelfieError(
+          'Não foi possível acessar a câmera. Verifique as permissões.'
+      );
       stopCamera();
     } finally {
       setCameraLoading(false);
     }
   };
-
   const handleCaptureSelfie = async (): Promise<void> => {
     const video = videoRef.current;
     const canvas = canvasRef.current;

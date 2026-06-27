@@ -21,6 +21,7 @@ export const AdminJourney: React.FC = () => {
 
   // Edit Modal State
   const [editingRecord, setEditingRecord] = useState<JourneyResponse | null>(null);
+  const [selectedSelfie, setSelectedSelfie] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({
     timestamp: '',
     latitude: 0,
@@ -201,16 +202,15 @@ export const AdminJourney: React.FC = () => {
                     <td className="p-4">
                       {hasSelfie ? (
                         <div className="flex flex-col gap-1">
-                          <a
-                            href={buildSelfieProofUrl(selfieId as string)}
-                            target="_blank"
-                            rel="noreferrer"
-                            data-testid={`selfie-${record.id}`}
-                            className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-700"
+                          <button
+                              type="button"
+                              onClick={() => setSelectedSelfie(buildSelfieProofUrl(selfieId as string))}
+                              data-testid={`selfie-${record.id}`}
+                              className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-700"
                           >
                             <Camera size={14} />
                             Ver selfie
-                          </a>
+                          </button>
                           <span className="text-[10px] text-gray-400">Se não abrir, a referência pode ter expirado.</span>
                         </div>
                       ) : (
@@ -317,6 +317,33 @@ export const AdminJourney: React.FC = () => {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Selfie Modal */}
+      {selectedSelfie && (
+          <div
+              className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4"
+              onClick={() => setSelectedSelfie(null)}
+          >
+            <div
+                className="relative max-h-[90vh] max-w-5xl"
+                onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                  type="button"
+                  onClick={() => setSelectedSelfie(null)}
+                  className="absolute -top-4 -right-4 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-lg hover:bg-gray-100"
+              >
+                <X size={20} />
+              </button>
+
+              <img
+                  src={selectedSelfie}
+                  alt="Selfie do funcionário"
+                  className="max-h-[90vh] max-w-full rounded-lg shadow-2xl object-contain"
+              />
+            </div>
+          </div>
       )}
     </div>
   );
