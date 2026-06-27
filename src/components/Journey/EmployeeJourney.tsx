@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { MapPin, Clock, History, AlertCircle, Camera } from 'lucide-react';
 import { useJourney } from '../../hooks/useJourney';
 
@@ -6,27 +6,89 @@ export const EmployeeJourney: React.FC = () => {
   const { history, loading, error, fetchHistory, registerJourney } = useJourney();
   const [selfie, setSelfie] = useState<File | null>(null);
   const [selfieError, setSelfieError] = useState<string | null>(null);
+  const [cameraLoading, setCameraLoading] = useState<boolean>(false);
+  const [isCameraOpen, setIsCameraOpen] = useState<boolean>(false);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => {
     fetchHistory();
   }, [fetchHistory]);
 
-  const handleSelfieChange = (event: React.ChangeEvent<HTMLInputElement>): void => {
-    const selectedFile = event.target.files?.[0] ?? null;
+  const stopCamera = useCallback((): void => {
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+    setIsCameraOpen(false);
+  }, []);
 
-    if (!selectedFile) {
-      setSelfie(null);
+  useEffect(() => () => stopCamera(), [stopCamera]);
+
+  const handleOpenCamera = async (): Promise<void> => {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setSelfieError('Your device does not support camera capture.');
       return;
     }
 
-    if (!selectedFile.type.startsWith('image/')) {
-      setSelfie(null);
-      setSelfieError('Please select a valid image file for your selfie.');
-      return;
-    }
-
+    stopCamera();
     setSelfieError(null);
-    setSelfie(selectedFile);
+    setSelfie(null);
+    setCameraLoading(true);
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'user' },
+        audio: false,
+      });
+
+      streamRef.current = stream;
+      setIsCameraOpen(true);
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
+    } catch {
+      setSelfieError('Camera access was denied. Please allow camera permission to continue.');
+      stopCamera();
+    } finally {
+      setCameraLoading(false);
+    }
+  };
+
+  const handleCaptureSelfie = async (): Promise<void> => {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+
+    if (!video || !canvas || video.videoWidth === 0 || video.videoHeight === 0) {
+      setSelfieError('Unable to capture selfie. Please reopen the camera and try again.');
+      return;
+    }
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    const context = canvas.getContext('2d');
+
+    if (!context) {
+      setSelfieError('Unable to process selfie capture. Please try again.');
+      return;
+    }
+
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    const blob = await new Promise<Blob | null>((resolve) => {
+      canvas.toBlob((value) => resolve(value), 'image/jpeg', 0.9);
+    });
+
+    if (!blob) {
+      setSelfieError('Selfie capture failed. Please try again.');
+      return;
+    }
+
+    setSelfie(new File([blob], `selfie-${Date.now()}.jpg`, { type: 'image/jpeg' }));
+    setSelfieError(null);
+    stopCamera();
   };
 
   const handleRegister = async (): Promise<void> => {
@@ -40,7 +102,7 @@ export const EmployeeJourney: React.FC = () => {
     try {
       await registerJourney(selfie);
       setSelfie(null);
-    } catch (err) {
+    } catch {
       // Error is handled by the hook and displayed in the UI
     }
   };
@@ -68,23 +130,49 @@ export const EmployeeJourney: React.FC = () => {
         )}
 
         <div className="mb-4 rounded-lg border border-dashed border-gray-300 p-4">
-          <label htmlFor="selfie" className="mb-2 flex items-center gap-2 font-semibold text-gray-700">
+          <p className="mb-2 flex items-center gap-2 font-semibold text-gray-700">
             <Camera size={18} className="text-blue-600" />
             Selfie obrigatória
-          </label>
-          <input
-            id="selfie"
-            type="file"
-            accept="image/*"
-            capture="user"
-            disabled={loading}
-            onChange={handleSelfieChange}
-            className="w-full cursor-pointer rounded-md border border-gray-300 p-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-blue-50 file:px-3 file:py-2 file:font-medium file:text-blue-700"
-          />
-          <p className="mt-2 text-sm text-gray-500">
-            Tire uma foto pela câmera (quando disponível) ou selecione uma imagem da galeria.
           </p>
-          {selfie && <p className="mt-1 text-sm text-green-700">Arquivo selecionado: {selfie.name}</p>}
+
+          <button
+            type="button"
+            onClick={handleOpenCamera}
+            disabled={loading || cameraLoading}
+            className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300"
+          >
+            <Camera size={16} />
+            {cameraLoading ? 'Abrindo câmera...' : selfie ? 'Tirar nova selfie' : 'Abrir câmera'}
+          </button>
+
+          {isCameraOpen && (
+            <div className="mt-3 space-y-3">
+              <video ref={videoRef} autoPlay muted playsInline className="w-full rounded-md border border-gray-300" />
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={handleCaptureSelfie}
+                  className="rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
+                >
+                  Capturar selfie
+                </button>
+                <button
+                  type="button"
+                  onClick={stopCamera}
+                  className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          )}
+
+          <canvas ref={canvasRef} className="hidden" />
+
+          <p className="mt-2 text-sm text-gray-500">
+            A selfie deve ser tirada pela câmera do dispositivo.
+          </p>
+          {selfie && <p className="mt-1 text-sm text-green-700">Selfie capturada com sucesso.</p>}
         </div>
 
         <button
