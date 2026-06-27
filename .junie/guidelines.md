@@ -82,7 +82,29 @@ All files must be organized according to their responsibility:
 - If a component grows too large during development, proactively suggest a split.
 - Always ensure new files follow the established directory structure.
 
-# 7. Task Management Guidelines
+
+# 7. Task and Documentation Management Guidelines
+
+### Documentation Structure for Features
+Each new feature must have its own documentation folder inside `docs/`, named after the feature (`kebab-case`).
+Every feature folder MUST contain:
+- `requirements.md`: User stories and acceptance criteria.
+- `plan.md`: Technical approach, architectural decisions, and phased implementation strategy.
+- `tasks.md`: Granular list of tasks following the Vertical Slice Architecture.
+
+Example:
+```
+docs/
+  register-journey/
+    requirements.md
+    plan.md
+    tasks.md
+  add-selfie-journey/
+    requirements.md
+    plan.md
+    tasks.md
+```
+
 
 ### Working with `docs/tasks.md`
 - Mark tasks as `[x]` when completed.
@@ -90,4 +112,4 @@ All files must be organized according to their responsibility:
 - When adding new tasks, ensure they are linked to a requirement and a plan item:
     - Format: `- [ ] T{phase}.{task_id}: Description (Plan: {plan_id}, Req: {req_id})`
 - Every modification to the task list must be reflected in the project progress.
-- Tasks should be as granular as possible, especially for vertical slices (splitting UI, Application, and Infra).
+- Tasks should be as granular as possible

@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { EmployeeJourney } from './EmployeeJourney';
 import { useJourney } from '../../hooks/useJourney';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
@@ -10,6 +10,9 @@ describe('EmployeeJourney', () => {
   const mockRegisterJourney = vi.fn();
 
   beforeEach(() => {
+    mockFetchHistory.mockClear();
+    mockRegisterJourney.mockClear();
+
     vi.mocked(useJourney).mockReturnValue({
       history: [],
       loading: false,
@@ -22,17 +25,33 @@ describe('EmployeeJourney', () => {
     });
   });
 
-  it('renders correctly and fetches history on mount', () => {
+  it('renders correctly and fetches history on mount', async () => {
     render(<EmployeeJourney />);
     expect(screen.getByText('Registro de Jornada')).toBeInTheDocument();
-    expect(mockFetchHistory).toHaveBeenCalled();
+    await waitFor(() => expect(mockFetchHistory).toHaveBeenCalled());
   });
 
   it('calls registerJourney when button is clicked', async () => {
+    const selfie = new File(['mock-selfie'], 'selfie.jpg', { type: 'image/jpeg' });
+
     render(<EmployeeJourney />);
+
+    const input = screen.getByLabelText('Selfie obrigatória');
+    fireEvent.change(input, { target: { files: [selfie] } });
+
     const button = screen.getByText('Registrar Ponto Agora');
     fireEvent.click(button);
-    expect(mockRegisterJourney).toHaveBeenCalled();
+    await waitFor(() => expect(mockRegisterJourney).toHaveBeenCalledWith(selfie));
+  });
+
+  it('blocks submission and shows validation when selfie is missing', async () => {
+    render(<EmployeeJourney />);
+
+    const button = screen.getByText('Registrar Ponto Agora');
+    fireEvent.click(button);
+
+    expect(mockRegisterJourney).not.toHaveBeenCalled();
+    expect(screen.getByText('A selfie is required before registering your journey.')).toBeInTheDocument();
   });
 
   it('shows loading state on button', () => {

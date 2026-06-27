@@ -1,12 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Edit2, Trash2, User as UserIcon, AlertCircle, Save, X } from 'lucide-react';
+import { Search, Edit2, Trash2, User as UserIcon, AlertCircle, Save, X, Camera } from 'lucide-react';
 import { useJourney } from '../../hooks/useJourney';
 import { userService } from '../../services/userService';
 import { JourneyResponse, User } from '../../types';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+const buildSelfieProofUrl = (selfieId: string): string =>
+  `${API_URL}/journey/selfie?selfie_id=${encodeURIComponent(selfieId)}`;
+
 export const AdminJourney: React.FC = () => {
   const { history, loading, error, fetchAdminHistory, updateJourney, deleteJourney } = useJourney();
   const [users, setUsers] = useState<User[]>([]);
+  const [usersError, setUsersError] = useState<string | null>(null);
   const [filters, setFilters] = useState({
     user_id: '',
     start_date: '',
@@ -29,10 +35,11 @@ export const AdminJourney: React.FC = () => {
 
   const loadUsers = async (): Promise<void> => {
     try {
+      setUsersError(null);
       const data = await userService.getAll();
       setUsers(data);
-    } catch (e) {
-      console.error('Failed to load users', e);
+    } catch {
+      setUsersError('Não foi possível carregar a lista de funcionários.');
     }
   };
 
@@ -67,7 +74,7 @@ export const AdminJourney: React.FC = () => {
       });
       setEditingRecord(null);
       handleSearch();
-    } catch (e) {
+    } catch {
       // Handled by hook
     }
   };
@@ -78,7 +85,7 @@ export const AdminJourney: React.FC = () => {
     try {
       await deleteJourney(id);
       handleSearch();
-    } catch (e) {
+    } catch {
       // Handled by hook
     }
   };
@@ -139,6 +146,13 @@ export const AdminJourney: React.FC = () => {
         </div>
       )}
 
+      {usersError && (
+        <div className="p-4 bg-red-50 border-l-4 border-red-500 text-red-700 flex items-center gap-2">
+          <AlertCircle size={20} />
+          <span>{usersError}</span>
+        </div>
+      )}
+
       <div className="bg-white rounded-lg shadow-md overflow-x-auto">
         <table className="w-full text-left">
           <thead className="bg-gray-50 border-b">
@@ -146,23 +160,27 @@ export const AdminJourney: React.FC = () => {
               <th className="p-4 font-semibold text-gray-600">Funcionário</th>
               <th className="p-4 font-semibold text-gray-600">Data/Hora</th>
               <th className="p-4 font-semibold text-gray-600">Coordenadas</th>
+              <th className="p-4 font-semibold text-gray-600">Selfie</th>
               <th className="p-4 font-semibold text-gray-600">Ações</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {loading ? (
               <tr>
-                <td colSpan={4} className="p-8 text-center">
+                <td colSpan={5} className="p-8 text-center">
                   <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-600 border-t-transparent mx-auto" />
                 </td>
               </tr>
             ) : history.length === 0 ? (
               <tr>
-                <td colSpan={4} className="p-8 text-center text-gray-500">Nenhum registro encontrado.</td>
+                <td colSpan={5} className="p-8 text-center text-gray-500">Nenhum registro encontrado.</td>
               </tr>
             ) : (
               history.map((record) => {
                 const user = users.find(u => u.id === record.user_id);
+                const selfieId = record.selfie_id?.trim();
+                const hasSelfie = Boolean(selfieId);
+
                 return (
                   <tr key={record.id} className="hover:bg-gray-50">
                     <td className="p-4">
@@ -179,6 +197,25 @@ export const AdminJourney: React.FC = () => {
                     </td>
                     <td className="p-4 text-xs text-gray-500">
                       {record.latitude.toFixed(6)}, {record.longitude.toFixed(6)}
+                    </td>
+                    <td className="p-4">
+                      {hasSelfie ? (
+                        <div className="flex flex-col gap-1">
+                          <a
+                            href={buildSelfieProofUrl(selfieId as string)}
+                            target="_blank"
+                            rel="noreferrer"
+                            data-testid={`selfie-${record.id}`}
+                            className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-700"
+                          >
+                            <Camera size={14} />
+                            Ver selfie
+                          </a>
+                          <span className="text-[10px] text-gray-400">Se não abrir, a referência pode ter expirado.</span>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-gray-400">Sem selfie disponível</span>
+                      )}
                     </td>
                     <td className="p-4">
                       <div className="flex gap-2">

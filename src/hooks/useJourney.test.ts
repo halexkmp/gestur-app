@@ -28,6 +28,7 @@ describe('useJourney', () => {
   });
 
   it('should handle registration success', async () => {
+    const selfie = new File(['mock-selfie'], 'selfie.jpg', { type: 'image/jpeg' });
     const mockPosition = {
       coords: { latitude: 10, longitude: 20 },
     };
@@ -36,7 +37,7 @@ describe('useJourney', () => {
     };
     vi.stubGlobal('navigator', { geolocation: mockGeolocation });
 
-    const mockResponse = { id: '1', user_id: 'u1', timestamp: '2024-01-01', latitude: 10, longitude: 20 };
+    const mockResponse = { id: '1', user_id: 'u1', timestamp: '2024-01-01', latitude: 10, longitude: 20, selfie_id: 'proof-1' };
     vi.mocked(journeyService.register).mockResolvedValue(mockResponse);
     vi.mocked(journeyService.getHistory).mockResolvedValue([mockResponse]);
 
@@ -44,15 +45,29 @@ describe('useJourney', () => {
 
     let regResult;
     await act(async () => {
-      regResult = await result.current.registerJourney();
+      regResult = await result.current.registerJourney(selfie);
     });
 
     expect(regResult).toEqual(mockResponse);
-    expect(journeyService.register).toHaveBeenCalledWith({ latitude: 10, longitude: 20 });
+    expect(journeyService.register).toHaveBeenCalledWith({ latitude: 10, longitude: 20, selfie });
     expect(result.current.error).toBe(null);
   });
 
+  it('should block registration when selfie is missing', async () => {
+    const { result } = renderHook(() => useJourney());
+
+    await act(async () => {
+      await expect(result.current.registerJourney(undefined as unknown as File)).rejects.toThrow(
+        'A selfie is required to register your journey.'
+      );
+    });
+
+    expect(result.current.error).toBe('A selfie is required to register your journey.');
+    expect(journeyService.register).not.toHaveBeenCalled();
+  });
+
   it('should handle registration geolocation error', async () => {
+    const selfie = new File(['mock-selfie'], 'selfie.jpg', { type: 'image/jpeg' });
     const mockGeolocation = {
       getCurrentPosition: vi.fn().mockImplementation((_, error) => error({ code: 1, PERMISSION_DENIED: 1 })),
     };
@@ -62,7 +77,7 @@ describe('useJourney', () => {
 
     await act(async () => {
       try {
-        await result.current.registerJourney();
+        await result.current.registerJourney(selfie);
       } catch (e) {
         // expected
       }

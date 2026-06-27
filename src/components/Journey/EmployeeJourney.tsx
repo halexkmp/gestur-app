@@ -1,17 +1,45 @@
-import React, { useEffect } from 'react';
-import { MapPin, Clock, History, AlertCircle } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { MapPin, Clock, History, AlertCircle, Camera } from 'lucide-react';
 import { useJourney } from '../../hooks/useJourney';
 
 export const EmployeeJourney: React.FC = () => {
   const { history, loading, error, fetchHistory, registerJourney } = useJourney();
+  const [selfie, setSelfie] = useState<File | null>(null);
+  const [selfieError, setSelfieError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchHistory();
   }, [fetchHistory]);
 
+  const handleSelfieChange = (event: React.ChangeEvent<HTMLInputElement>): void => {
+    const selectedFile = event.target.files?.[0] ?? null;
+
+    if (!selectedFile) {
+      setSelfie(null);
+      return;
+    }
+
+    if (!selectedFile.type.startsWith('image/')) {
+      setSelfie(null);
+      setSelfieError('Please select a valid image file for your selfie.');
+      return;
+    }
+
+    setSelfieError(null);
+    setSelfie(selectedFile);
+  };
+
   const handleRegister = async (): Promise<void> => {
+    if (!selfie) {
+      setSelfieError('A selfie is required before registering your journey.');
+      return;
+    }
+
+    setSelfieError(null);
+
     try {
-      await registerJourney();
+      await registerJourney(selfie);
+      setSelfie(null);
     } catch (err) {
       // Error is handled by the hook and displayed in the UI
     }
@@ -31,6 +59,33 @@ export const EmployeeJourney: React.FC = () => {
             <span>{error}</span>
           </div>
         )}
+
+        {selfieError && (
+          <div className="mb-4 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 flex items-center gap-2">
+            <AlertCircle size={20} />
+            <span>{selfieError}</span>
+          </div>
+        )}
+
+        <div className="mb-4 rounded-lg border border-dashed border-gray-300 p-4">
+          <label htmlFor="selfie" className="mb-2 flex items-center gap-2 font-semibold text-gray-700">
+            <Camera size={18} className="text-blue-600" />
+            Selfie obrigatória
+          </label>
+          <input
+            id="selfie"
+            type="file"
+            accept="image/*"
+            capture="user"
+            disabled={loading}
+            onChange={handleSelfieChange}
+            className="w-full cursor-pointer rounded-md border border-gray-300 p-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-blue-50 file:px-3 file:py-2 file:font-medium file:text-blue-700"
+          />
+          <p className="mt-2 text-sm text-gray-500">
+            Tire uma foto pela câmera (quando disponível) ou selecione uma imagem da galeria.
+          </p>
+          {selfie && <p className="mt-1 text-sm text-green-700">Arquivo selecionado: {selfie.name}</p>}
+        </div>
 
         <button
           onClick={handleRegister}
