@@ -4,11 +4,13 @@ export interface JourneyResponse {
   timestamp: string;
   latitude: number;
   longitude: number;
+  selfie_id?: string | null;
 }
 
 export interface RegisterJourneyRequest {
   latitude: number;
   longitude: number;
+  selfie: File;
 }
 
 export interface UpdateJourneyRequest {

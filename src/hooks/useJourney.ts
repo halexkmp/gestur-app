@@ -20,7 +20,13 @@ export const useJourney = () => {
     }
   }, []);
 
-  const registerJourney = useCallback(async () => {
+  const registerJourney = useCallback(async (selfie: File) => {
+    if (!selfie) {
+      const msg = 'A selfie is required to register your journey.';
+      setError(msg);
+      throw new Error(msg);
+    }
+
     setLoading(true);
     setError(null);
 
@@ -38,6 +44,7 @@ export const useJourney = () => {
             const result = await journeyService.register({
               latitude: position.coords.latitude,
               longitude: position.coords.longitude,
+              selfie,
             });
             await fetchHistory();
             resolve(result);

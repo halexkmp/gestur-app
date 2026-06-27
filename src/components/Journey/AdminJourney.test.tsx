@@ -16,6 +16,10 @@ describe('AdminJourney', () => {
   ];
 
   beforeEach(() => {
+    mockFetchAdminHistory.mockClear();
+    mockUpdateJourney.mockClear();
+    mockDeleteJourney.mockClear();
+
     vi.mocked(useJourney).mockReturnValue({
       history: [],
       loading: false,
@@ -39,14 +43,18 @@ describe('AdminJourney', () => {
 
   it('filters results when clicking filter button', async () => {
     render(<AdminJourney />);
+
+    await waitFor(() => expect(userService.getAll).toHaveBeenCalled());
+
     const button = screen.getByText('Filtrar');
     fireEvent.click(button);
-    // On mount (useEffect) + handleSearch (called in useEffect) + button click = 3
-    expect(mockFetchAdminHistory).toHaveBeenCalledTimes(3); 
+
+    // One request on mount + one request after clicking "Filtrar"
+    await waitFor(() => expect(mockFetchAdminHistory).toHaveBeenCalledTimes(2));
   });
 
   it('opens edit modal and saves changes', async () => {
-    const record = { id: 'j1', user_id: 'u1', timestamp: '2024-01-01T10:00:00', latitude: 10, longitude: 20 };
+    const record = { id: 'j1', user_id: 'u1', timestamp: '2024-01-01T10:00:00', latitude: 10, longitude: 20, selfie_id: 'proof-1' };
     vi.mocked(useJourney).mockReturnValue({
       history: [record],
       loading: false,
@@ -76,8 +84,45 @@ describe('AdminJourney', () => {
     await waitFor(() => expect(mockUpdateJourney).toHaveBeenCalled());
   });
 
-  it('calls deleteJourney on delete button click', async () => {
+  it('shows selfie proof action when selfie_id exists', async () => {
+    const record = { id: 'j1', user_id: 'u1', timestamp: '2024-01-01T10:00:00', latitude: 10, longitude: 20, selfie_id: 'proof-1' };
+    vi.mocked(useJourney).mockReturnValue({
+      history: [record],
+      loading: false,
+      error: null,
+      fetchHistory: vi.fn(),
+      registerJourney: vi.fn(),
+      fetchAdminHistory: mockFetchAdminHistory,
+      updateJourney: mockUpdateJourney,
+      deleteJourney: mockDeleteJourney,
+    });
+
+    render(<AdminJourney />);
+
+    await waitFor(() => expect(screen.getByTestId('selfie-j1')).toBeInTheDocument());
+    expect(screen.getByText('Se não abrir, a referência pode ter expirado.')).toBeInTheDocument();
+  });
+
+  it('shows fallback when selfie is missing', async () => {
     const record = { id: 'j1', user_id: 'u1', timestamp: '2024-01-01T10:00:00', latitude: 10, longitude: 20 };
+    vi.mocked(useJourney).mockReturnValue({
+      history: [record],
+      loading: false,
+      error: null,
+      fetchHistory: vi.fn(),
+      registerJourney: vi.fn(),
+      fetchAdminHistory: mockFetchAdminHistory,
+      updateJourney: mockUpdateJourney,
+      deleteJourney: mockDeleteJourney,
+    });
+
+    render(<AdminJourney />);
+
+    await waitFor(() => expect(screen.getByText('Sem selfie disponível')).toBeInTheDocument());
+  });
+
+  it('calls deleteJourney on delete button click', async () => {
+    const record = { id: 'j1', user_id: 'u1', timestamp: '2024-01-01T10:00:00', latitude: 10, longitude: 20, selfie_id: null };
     vi.mocked(useJourney).mockReturnValue({
       history: [record],
       loading: false,

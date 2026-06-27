@@ -1,18 +1,135 @@
-import React, { useEffect } from 'react';
-import { MapPin, Clock, History, AlertCircle } from 'lucide-react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { MapPin, Clock, History, AlertCircle, Camera } from 'lucide-react';
 import { useJourney } from '../../hooks/useJourney';
 
 export const EmployeeJourney: React.FC = () => {
   const { history, loading, error, fetchHistory, registerJourney } = useJourney();
+  const [selfie, setSelfie] = useState<File | null>(null);
+  const [selfieError, setSelfieError] = useState<string | null>(null);
+  const [cameraLoading, setCameraLoading] = useState<boolean>(false);
+  const [isCameraOpen, setIsCameraOpen] = useState<boolean>(false);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => {
     fetchHistory();
   }, [fetchHistory]);
 
-  const handleRegister = async (): Promise<void> => {
+  const stopCamera = useCallback((): void => {
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+    setIsCameraOpen(false);
+  }, []);
+
+  useEffect(() => () => stopCamera(), [stopCamera]);
+
+  useEffect(() => {
+    if (!isCameraOpen) return;
+
+    const video = videoRef.current;
+    const stream = streamRef.current;
+
+    if (!video || !stream) return;
+
+    video.srcObject = stream;
+
+    const handleLoaded = async () => {
+      try {
+        await video.play();
+      } catch (err) {
+        console.error(err);
+      }
+    };
+
+    video.onloadedmetadata = handleLoaded;
+
+    return () => {
+      video.onloadedmetadata = null;
+    };
+  }, [isCameraOpen]);
+
+  const handleOpenCamera = async (): Promise<void> => {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setSelfieError('Seu dispositivo não suporta câmera.');
+      return;
+    }
+
+    stopCamera();
+    setSelfieError(null);
+    setSelfie(null);
+    setCameraLoading(true);
+
     try {
-      await registerJourney();
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: "user",
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
+        audio: false,
+      });
+
+      streamRef.current = stream;
+
+      // Apenas abre o componente
+      setIsCameraOpen(true);
     } catch (err) {
+      setSelfieError(
+          'Não foi possível acessar a câmera. Verifique as permissões.'
+      );
+      stopCamera();
+    } finally {
+      setCameraLoading(false);
+    }
+  };
+  const handleCaptureSelfie = async (): Promise<void> => {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+
+    if (!video || !canvas || video.videoWidth === 0 || video.videoHeight === 0) {
+      setSelfieError('Unable to capture selfie. Please reopen the camera and try again.');
+      return;
+    }
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    const context = canvas.getContext('2d');
+
+    if (!context) {
+      setSelfieError('Unable to process selfie capture. Please try again.');
+      return;
+    }
+
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    const blob = await new Promise<Blob | null>((resolve) => {
+      canvas.toBlob((value) => resolve(value), 'image/jpeg', 0.9);
+    });
+
+    if (!blob) {
+      setSelfieError('Selfie capture failed. Please try again.');
+      return;
+    }
+
+    setSelfie(new File([blob], `selfie-${Date.now()}.jpg`, { type: 'image/jpeg' }));
+    setSelfieError(null);
+    stopCamera();
+  };
+
+  const handleRegister = async (): Promise<void> => {
+    if (!selfie) {
+      setSelfieError('A selfie is required before registering your journey.');
+      return;
+    }
+
+    setSelfieError(null);
+
+    try {
+      await registerJourney(selfie);
+      setSelfie(null);
+    } catch {
       // Error is handled by the hook and displayed in the UI
     }
   };
@@ -32,6 +149,56 @@ export const EmployeeJourney: React.FC = () => {
           </div>
         )}
 
+        {selfieError && (
+          <div className="mb-4 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 flex items-center gap-2">
+            <AlertCircle size={20} />
+            <span>{selfieError}</span>
+          </div>
+        )}
+
+        <div className="mb-4 rounded-lg border border-dashed border-gray-300 p-4">
+
+          <button
+            type="button"
+            onClick={handleOpenCamera}
+            disabled={loading || cameraLoading}
+            className="inline-flex items-center gap-5 rounded-md bg-blue-600 px-16 py-2 font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300"
+          >
+            <Camera size={16} />
+            {cameraLoading ? 'Abrindo câmera...' : selfie ? 'Tirar nova selfie' : 'Abrir câmera'}
+          </button>
+
+          {isCameraOpen && (
+            <div className="mt-3 space-y-3">
+              <video ref={videoRef} autoPlay muted playsInline className="w-full rounded-md border border-gray-300" />
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={handleCaptureSelfie}
+                  className="rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
+                >
+                  Capturar
+                  Capturar
+                </button>
+                <button
+                  type="button"
+                  onClick={stopCamera}
+                  className="rounded-md bg-red-600 text-white border-gray-300 px-4 py-2 text-sm font-medium hover:bg-gray-100"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          )}
+
+          <canvas ref={canvasRef} className="hidden" />
+
+          <p className="mt-2 text-sm text-gray-500">
+            Faça sua selfie para validar seu registro.
+          </p>
+          {selfie && <p className="mt-1 text-sm text-green-700">Selfie capturada com sucesso.</p>}
+        </div>
+
         <button
           onClick={handleRegister}
           disabled={loading}
@@ -46,7 +213,7 @@ export const EmployeeJourney: React.FC = () => {
           ) : (
             <>
               <MapPin size={24} />
-              Registrar Ponto Agora
+              Registrar Ponto
             </>
           )}
         </button>

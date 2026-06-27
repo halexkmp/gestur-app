@@ -12,15 +12,34 @@ vi.mock('../lib/api', () => ({
 }));
 
 describe('journeyService', () => {
-  it('should call api.post for register', async () => {
-    const payload = { latitude: 10, longitude: 20 };
-    const response = { id: '1', user_id: 'u1', timestamp: '2024-01-01', ...payload };
+  it('should call api.post with FormData for register', async () => {
+    const selfie = new File(['mock-selfie'], 'selfie.jpg', { type: 'image/jpeg' });
+    const payload = { latitude: 10, longitude: 20, selfie };
+    const response = { id: '1', user_id: 'u1', timestamp: '2024-01-01', latitude: 10, longitude: 20, selfie_id: 'proof-1' };
     vi.mocked(api.post).mockResolvedValue(response);
 
     const result = await journeyService.register(payload);
 
-    expect(api.post).toHaveBeenCalledWith('/journey/', payload);
+    const registerPayload = vi.mocked(api.post).mock.calls[0][1] as FormData;
+
+    expect(api.post).toHaveBeenCalledWith('/journey/', expect.any(FormData));
+    expect(registerPayload.get('latitude')).toBe('10');
+    expect(registerPayload.get('longitude')).toBe('20');
+    expect(registerPayload.get('selfie')).toBe(selfie);
     expect(result).toEqual(response);
+  });
+
+  it('should normalize 422-like validation errors on register', async () => {
+    const payload = {
+      latitude: 10,
+      longitude: 20,
+      selfie: new File(['mock-selfie'], 'selfie.jpg', { type: 'image/jpeg' }),
+    };
+    vi.mocked(api.post).mockRejectedValue(new Error('[object Object]'));
+
+    await expect(journeyService.register(payload)).rejects.toThrow(
+      'Invalid journey data. Please check your selfie and location, then try again.'
+    );
   });
 
   it('should call api.get for getHistory', async () => {
