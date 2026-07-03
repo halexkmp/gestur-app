@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit2, Archive, User } from 'lucide-react';
+import { Plus, Edit2, Archive, User, Coins } from 'lucide-react';
 import { Partner, PartnerType } from '../types';
 import { partnerService } from '../services/partnerService';
+import LoanDrawer from './LoanDrawer';
 
 export default function Buggyman() {
   const [buggymans, setBuggymans] = useState<Partner[]>([]);
   const [showForm, setShowForm] = useState(false);
+  const [selectedBuggymanForLoans, setSelectedBuggymanForLoans] = useState<Partner | null>(null);
+  const [isLoansDrawerOpen, setIsLoansDrawerOpen] = useState(false);
   const [editingBuggyman, setEditingBuggyman] = useState<Partner | null>(null);
   const [formData, setFormData] = useState({
     name: '',
@@ -56,6 +59,7 @@ export default function Buggyman() {
     setFormData({
       name: buggyman.name,
       pix_key: buggyman.pix_key || '',
+      type: PartnerType.BUGGYMAN
     });
     setShowForm(true);
   };
@@ -64,6 +68,7 @@ export default function Buggyman() {
     setFormData({
       name: '',
       pix_key: '',
+      type: PartnerType.BUGGYMAN
     });
     setEditingBuggyman(null);
     setShowForm(false);
@@ -150,6 +155,16 @@ export default function Buggyman() {
               <User className={`w-8 h-8 ${buggyman.active ? 'text-blue-600' : 'text-gray-400'}`} />
               <div className="flex gap-2">
                 <button
+                  onClick={() => {
+                    setSelectedBuggymanForLoans(buggyman);
+                    setIsLoansDrawerOpen(true);
+                  }}
+                  className="p-1 hover:bg-gray-100 rounded"
+                  title="Empréstimos"
+                >
+                  <Coins className="w-4 h-4 text-gray-600" />
+                </button>
+                <button
                   onClick={() => startEdit(buggyman)}
                   className="p-1 hover:bg-gray-100 rounded"
                 >
@@ -174,6 +189,14 @@ export default function Buggyman() {
           </div>
         ))}
       </div>
+      <LoanDrawer
+        isOpen={isLoansDrawerOpen}
+        onClose={() => {
+          setIsLoansDrawerOpen(false);
+          setSelectedBuggymanForLoans(null);
+        }}
+        partner={selectedBuggymanForLoans}
+      />
     </div>
   );
 }
