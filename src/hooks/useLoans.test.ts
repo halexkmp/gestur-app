@@ -80,7 +80,7 @@ describe('useLoans', () => {
         partner_id: 'p1',
         principal_amount: 500,
         interest_rate: 10,
-        installments: 1,
+        installments_qty: 1,
         due_day: 5,
         start_date: '2026-07-01',
         end_date: '2026-08-01',

@@ -22,21 +22,21 @@ export interface Loan {
   principal_amount: number;
   interest_rate: number;
   total_amount: number;
-  installments: number;
+  installments_qty: number;
   due_day: number;
   start_date: string;
   end_date: string;
   status: LoanStatus;
   created_at: string;
   updated_at: string;
-  installments_list?: LoanInstallment[];
+  installments?: LoanInstallment[];
 }
 
 export interface CreateLoanRequest {
   partner_id: string;
   principal_amount: number;
   interest_rate: number;
-  installments: number;
+  installments_qty: number;
   due_day: number;
   start_date: string;
   end_date: string;

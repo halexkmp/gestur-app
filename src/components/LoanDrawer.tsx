@@ -68,7 +68,7 @@ export default function LoanDrawer({ isOpen, onClose, partner }: LoanDrawerProps
         <div className="bg-white border-b border-gray-200 px-6 py-5 flex items-center justify-between">
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-xl font-bold text-gray-800">Empréstimos de Parceiros</h2>
+              <h2 className="text-xl font-bold text-gray-800">Empréstimos de Bugueiros</h2>
               <span
                 className={`text-xs px-2 py-0.5 rounded-full font-semibold border ${
                   partner.active

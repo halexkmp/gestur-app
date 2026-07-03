@@ -12,7 +12,7 @@ export default function LoanFormModal({ partnerId, onClose, onSubmit }: LoanForm
   const [formData, setFormData] = useState({
     principal_amount: '',
     interest_rate: '0',
-    installments: '1',
+    installments_qty: '1',
     due_day: '10',
     start_date: new Date().toISOString().split('T')[0],
     end_date: '',
@@ -27,9 +27,9 @@ export default function LoanFormModal({ partnerId, onClose, onSubmit }: LoanForm
 
     const principal = parseFloat(formData.principal_amount);
     if (!formData.principal_amount || isNaN(principal)) {
-      newErrors.principal_amount = 'O valor principal é obrigatório.';
+      newErrors.principal_amount = 'O valor bruto é obrigatório.';
     } else if (principal <= 0) {
-      newErrors.principal_amount = 'O valor principal deve ser maior que zero.';
+      newErrors.principal_amount = 'O valor bruto deve ser maior que zero.';
     }
 
     const interest = parseFloat(formData.interest_rate);
@@ -37,7 +37,7 @@ export default function LoanFormModal({ partnerId, onClose, onSubmit }: LoanForm
       newErrors.interest_rate = 'A taxa de juros não pode ser negativa.';
     }
 
-    const instCount = parseInt(formData.installments, 10);
+    const instCount = parseInt(formData.installments_qty, 10);
     if (isNaN(instCount) || instCount < 1) {
       newErrors.installments = 'O número de parcelas deve ser pelo menos 1.';
     }
@@ -77,7 +77,7 @@ export default function LoanFormModal({ partnerId, onClose, onSubmit }: LoanForm
       partner_id: partnerId,
       principal_amount: parseFloat(formData.principal_amount),
       interest_rate: parseFloat(formData.interest_rate),
-      installments: parseInt(formData.installments, 10),
+      installments_qty: parseInt(formData.installments_qty, 10),
       due_day: parseInt(formData.due_day, 10),
       start_date: formData.start_date,
       end_date: formData.end_date,
@@ -113,7 +113,7 @@ export default function LoanFormModal({ partnerId, onClose, onSubmit }: LoanForm
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Valor Principal (R$) <span className="text-red-500">*</span>
+              Valor Bruto (R$) <span className="text-red-500">*</span>
             </label>
             <input
               type="number"
@@ -156,14 +156,14 @@ export default function LoanFormModal({ partnerId, onClose, onSubmit }: LoanForm
               <input
                 type="number"
                 min="1"
-                value={formData.installments}
-                onChange={(e) => setFormData({ ...formData, installments: e.target.value })}
+                value={formData.installments_qty}
+                onChange={(e) => setFormData({ ...formData, installments_qty: e.target.value })}
                 className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  errors.installments ? 'border-red-300' : 'border-gray-300'
+                  errors.installments_qty ? 'border-red-300' : 'border-gray-300'
                 }`}
               />
-              {errors.installments && (
-                <p className="text-xs text-red-500 mt-1">{errors.installments}</p>
+              {errors.installments_qty && (
+                <p className="text-xs text-red-500 mt-1">{errors.installments_qty}</p>
               )}
             </div>
           </div>

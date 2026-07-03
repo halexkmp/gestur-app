@@ -478,7 +478,7 @@ interface Loan {
     created_at: string;
     updated_at: string;
 
-    installments_list?: LoanInstallment[];
+    installments?: LoanInstallment[];
 }
 ```
 

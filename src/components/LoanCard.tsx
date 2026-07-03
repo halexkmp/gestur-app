@@ -67,16 +67,16 @@ export default function LoanCard({
       >
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 flex-1">
           <div>
-            <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold">Principal</p>
+            <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold">Valor Bruto</p>
             <p className="text-sm font-bold text-gray-900 mt-0.5">{formatCurrency(loan.principal_amount)}</p>
           </div>
           <div>
-            <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold">Total Geral</p>
+            <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold">Empréstimo</p>
             <p className="text-sm font-bold text-gray-900 mt-0.5">{formatCurrency(loan.total_amount)}</p>
           </div>
           <div>
             <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold">Parcelas</p>
-            <p className="text-sm font-semibold text-gray-700 mt-0.5">{loan.installments}</p>
+            <p className="text-sm font-semibold text-gray-700 mt-0.5">{loan.installments_qty}</p>
           </div>
           <div>
             <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold">Status</p>
@@ -116,13 +116,13 @@ export default function LoanCard({
             </div>
           </div>
 
-          {loadingDetails && !loan.installments_list ? (
+          {loadingDetails && !loan.installments ? (
             <div className="flex justify-center items-center py-6 gap-2 text-sm text-gray-500 font-medium">
               <Loader2 className="w-5 h-5 animate-spin text-blue-600" /> Carregando parcelas...
             </div>
-          ) : loan.installments_list && loan.installments_list.length > 0 ? (
+          ) : loan.installments && loan.installments.length > 0 ? (
             <InstallmentList
-              installments={loan.installments_list}
+              installments={loan.installments}
               onPay={(installmentId) => onPayInstallment(installmentId, loan.id)}
             />
           ) : (
