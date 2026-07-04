@@ -81,9 +81,7 @@ describe('useLoans', () => {
         principal_amount: 500,
         interest_rate: 10,
         installments_qty: 1,
-        due_day: 5,
         start_date: '2026-07-01',
-        end_date: '2026-08-01',
       });
     });
 
@@ -116,5 +114,29 @@ describe('useLoans', () => {
     expect(loanService.payInstallment).toHaveBeenCalledWith('inst1', '2026-07-01');
     expect(loanService.getById).toHaveBeenCalledWith('l1');
     expect(result.current.loans).toEqual([updatedDetailedLoan]);
+  });
+
+  it('should handle updateLoanStatus and update local loans state', async () => {
+    const mockLoans = [
+      { id: 'l1', partner_id: 'p1', principal_amount: 1000, status: 'ACTIVE' }
+    ];
+    const updatedLoan = {
+      id: 'l1',
+      partner_id: 'p1',
+      principal_amount: 1000,
+      status: 'PAID'
+    };
+
+    vi.mocked(loanService.getByPartner).mockResolvedValue(mockLoans as any);
+    vi.mocked(loanService.update).mockResolvedValue(updatedLoan as any);
+
+    const { result } = renderHook(() => useLoans('p1'));
+
+    await act(async () => {
+      await result.current.updateLoanStatus('l1', 'PAID');
+    });
+
+    expect(loanService.update).toHaveBeenCalledWith('l1', { status: 'PAID' });
+    expect(result.current.loans).toEqual([updatedLoan]);
   });
 });

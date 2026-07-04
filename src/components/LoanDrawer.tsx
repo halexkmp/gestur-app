@@ -19,6 +19,7 @@ export default function LoanDrawer({ isOpen, onClose, partner }: LoanDrawerProps
     fetchLoanDetails,
     createLoan,
     payInstallment,
+    updateLoanStatus,
   } = useLoans(partner?.id);
 
   const [expandedLoanId, setExpandedLoanId] = useState<string | null>(null);
@@ -143,6 +144,7 @@ export default function LoanDrawer({ isOpen, onClose, partner }: LoanDrawerProps
                     payInstallment(installmentId, new Date().toISOString().split('T')[0], loanId).then(() => {})
                   }
                   loadingDetails={loadingDetailsId === loan.id}
+                  onUpdateStatus={updateLoanStatus}
                 />
               ))}
             </div>

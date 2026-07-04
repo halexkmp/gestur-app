@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { loanService } from '../services/loanService';
-import { Loan, CreateLoanRequest, LoanInstallment } from '../types';
+import { Loan, CreateLoanRequest, LoanInstallment, LoanStatus } from '../types';
 
 export const useLoans = (partnerId?: string) => {
   const [loans, setLoans] = useState<Loan[]>([]);
@@ -74,6 +74,21 @@ export const useLoans = (partnerId?: string) => {
     }
   }, [fetchLoans, fetchLoanDetails]);
 
+  const updateLoanStatus = useCallback(async (loanId: string, status: LoanStatus): Promise<Loan> => {
+    setLoading(true);
+    setError(null);
+    try {
+      const updatedLoan = await loanService.update(loanId, { status });
+      setLoans(prev => prev.map(loan => loan.id === loanId ? { ...loan, ...updatedLoan } : loan));
+      return updatedLoan;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update loan status');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (partnerId) {
       fetchLoans();
@@ -90,5 +105,6 @@ export const useLoans = (partnerId?: string) => {
     fetchLoanDetails,
     createLoan,
     payInstallment,
+    updateLoanStatus,
   };
 };

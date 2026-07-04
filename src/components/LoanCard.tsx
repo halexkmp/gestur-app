@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import { ChevronDown, ChevronUp, Calendar, Percent, Loader2 } from 'lucide-react';
-import { Loan } from '../types';
+import { Loan, LoanStatus } from '../types';
 import InstallmentList from './InstallmentList';
 
 interface LoanCardProps {
@@ -8,6 +9,7 @@ interface LoanCardProps {
   onToggle: () => void;
   onPayInstallment: (installmentId: string, loanId: string) => Promise<void>;
   loadingDetails: boolean;
+  onUpdateStatus: (loanId: string, status: LoanStatus) => Promise<any>;
 }
 
 export default function LoanCard({
@@ -16,7 +18,11 @@ export default function LoanCard({
   onToggle,
   onPayInstallment,
   loadingDetails,
+  onUpdateStatus,
 }: LoanCardProps) {
+  const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [statusError, setStatusError] = useState<string | null>(null);
+
   const formatCurrency = (amount: number) => {
     return amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   };
@@ -34,10 +40,12 @@ export default function LoanCard({
       case 'ACTIVE':
         return 'bg-blue-100 text-blue-800 border-blue-200';
       case 'FINISHED':
+      case 'PAID':
         return 'bg-green-100 text-green-800 border-green-200';
       case 'DEFAULTED':
         return 'bg-red-100 text-red-800 border-red-200';
       case 'CANCELLED':
+      case 'CANCELED':
         return 'bg-gray-100 text-gray-800 border-gray-200';
       default:
         return 'bg-gray-100 text-gray-800 border-gray-200';
@@ -50,12 +58,28 @@ export default function LoanCard({
         return 'Ativo';
       case 'FINISHED':
         return 'Finalizado';
+      case 'PAID':
+        return 'Pago';
       case 'DEFAULTED':
         return 'Inadimplente';
       case 'CANCELLED':
+      case 'CANCELED':
         return 'Cancelado';
       default:
         return status;
+    }
+  };
+
+  const handleStatusChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newStatus = e.target.value as LoanStatus;
+    setUpdatingStatus(true);
+    setStatusError(null);
+    try {
+      await onUpdateStatus(loan.id, newStatus);
+    } catch (err) {
+      setStatusError(err instanceof Error ? err.message : 'Falha ao atualizar status');
+    } finally {
+      setUpdatingStatus(false);
     }
   };
 
@@ -113,6 +137,31 @@ export default function LoanCard({
                 <p className="text-xs text-gray-500">Término</p>
                 <p className="text-sm font-medium text-gray-800">{formatDate(loan.end_date)}</p>
               </div>
+            </div>
+          </div>
+
+          <div className="bg-white p-3 rounded-lg border border-gray-150 mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Alterar Status:</span>
+              {updatingStatus && <Loader2 className="w-4 h-4 animate-spin text-blue-600" />}
+            </div>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 flex-1 sm:justify-end">
+              <select
+                value={loan.status}
+                disabled={updatingStatus}
+                onChange={handleStatusChange}
+                className="text-sm bg-white border border-gray-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium text-gray-700 disabled:bg-gray-100 transition"
+              >
+                <option value="ACTIVE">Ativo</option>
+                <option value="PAID">Pago</option>
+                <option value="CANCELED">Cancelado</option>
+                {loan.status === 'FINISHED' && <option value="FINISHED">Finalizado</option>}
+                {loan.status === 'DEFAULTED' && <option value="DEFAULTED">Inadimplente</option>}
+                {loan.status === 'CANCELLED' && <option value="CANCELLED">Cancelado (Antigo)</option>}
+              </select>
+              {statusError && (
+                <span className="text-xs text-red-600 font-medium">{statusError}</span>
+              )}
             </div>
           </div>
 

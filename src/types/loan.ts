@@ -2,7 +2,9 @@ export type LoanStatus =
   | 'ACTIVE'
   | 'FINISHED'
   | 'DEFAULTED'
-  | 'CANCELLED';
+  | 'CANCELLED'
+  | 'PAID'
+  | 'CANCELED';
 
 export interface LoanInstallment {
   id: string;
@@ -23,7 +25,6 @@ export interface Loan {
   interest_rate: number;
   total_amount: number;
   installments_qty: number;
-  due_day: number;
   start_date: string;
   end_date: string;
   status: LoanStatus;
@@ -37,7 +38,9 @@ export interface CreateLoanRequest {
   principal_amount: number;
   interest_rate: number;
   installments_qty: number;
-  due_day: number;
   start_date: string;
-  end_date: string;
+}
+
+export interface UpdateLoanRequest {
+  status?: LoanStatus;
 }

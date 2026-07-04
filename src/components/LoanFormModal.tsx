@@ -13,9 +13,7 @@ export default function LoanFormModal({ partnerId, onClose, onSubmit }: LoanForm
     principal_amount: '',
     interest_rate: '0',
     installments_qty: '1',
-    due_day: '10',
     start_date: new Date().toISOString().split('T')[0],
-    end_date: '',
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -42,24 +40,9 @@ export default function LoanFormModal({ partnerId, onClose, onSubmit }: LoanForm
       newErrors.installments = 'O número de parcelas deve ser pelo menos 1.';
     }
 
-    const dueDay = parseInt(formData.due_day, 10);
-    if (isNaN(dueDay) || dueDay < 1 || dueDay > 31) {
-      newErrors.due_day = 'O dia de vencimento deve ser entre 1 e 31.';
-    }
 
     if (!formData.start_date) {
       newErrors.start_date = 'A data de início é obrigatória.';
-    }
-
-    if (!formData.end_date) {
-      newErrors.end_date = 'A data de término é obrigatória.';
-    }
-
-    if (formData.start_date && formData.end_date) {
-      if (new Date(formData.start_date) > new Date(formData.end_date)) {
-        newErrors.start_date = 'A data de início não pode ser após a data de término.';
-        newErrors.end_date = 'A data de término não pode ser anterior à data de início.';
-      }
     }
 
     setErrors(newErrors);
@@ -78,9 +61,7 @@ export default function LoanFormModal({ partnerId, onClose, onSubmit }: LoanForm
       principal_amount: parseFloat(formData.principal_amount),
       interest_rate: parseFloat(formData.interest_rate),
       installments_qty: parseInt(formData.installments_qty, 10),
-      due_day: parseInt(formData.due_day, 10),
       start_date: formData.start_date,
-      end_date: formData.end_date,
     };
 
     try {
@@ -168,59 +149,22 @@ export default function LoanFormModal({ partnerId, onClose, onSubmit }: LoanForm
             </div>
           </div>
 
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Dia de Vencimento Mensal <span className="text-red-500">*</span>
+              Data de Início <span className="text-red-500">*</span>
             </label>
             <input
-              type="number"
-              min="1"
-              max="31"
-              value={formData.due_day}
-              onChange={(e) => setFormData({ ...formData, due_day: e.target.value })}
+              type="date"
+              value={formData.start_date}
+              onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
               className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                errors.due_day ? 'border-red-300' : 'border-gray-300'
+                errors.start_date ? 'border-red-300' : 'border-gray-300'
               }`}
             />
-            {errors.due_day && (
-              <p className="text-xs text-red-500 mt-1">{errors.due_day}</p>
+            {errors.start_date && (
+              <p className="text-xs text-red-500 mt-1">{errors.start_date}</p>
             )}
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Data de Início <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="date"
-                value={formData.start_date}
-                onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  errors.start_date ? 'border-red-300' : 'border-gray-300'
-                }`}
-              />
-              {errors.start_date && (
-                <p className="text-xs text-red-500 mt-1">{errors.start_date}</p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Data de Término <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="date"
-                value={formData.end_date}
-                onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  errors.end_date ? 'border-red-300' : 'border-gray-300'
-                }`}
-              />
-              {errors.end_date && (
-                <p className="text-xs text-red-500 mt-1">{errors.end_date}</p>
-              )}
-            </div>
           </div>
 
           <div className="flex gap-3 pt-4 border-t border-gray-100">
