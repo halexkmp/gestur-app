@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { CreateLoanRequest } from '../types';
 import { X, Loader2 } from 'lucide-react';
 
@@ -19,6 +19,40 @@ export default function LoanFormModal({ partnerId, onClose, onSubmit }: LoanForm
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [generalError, setGeneralError] = useState<string | null>(null);
+
+  const estimatedEndDate = useMemo(() => {
+    const installmentsCount = parseInt(formData.installments_qty, 10);
+    if (!formData.start_date || isNaN(installmentsCount) || installmentsCount < 1) {
+      return '-';
+    }
+    const parts = formData.start_date.split('-');
+    if (parts.length !== 3) return '-';
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1; // 0-based
+    const day = parseInt(parts[2], 10);
+    
+    const date = new Date(year, month, day);
+    date.setDate(date.getDate() + installmentsCount * 7);
+    
+    return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
+  }, [formData.start_date, formData.installments_qty]);
+
+  const estimatedTotalAmount = useMemo(() => {
+    const principal = parseFloat(formData.principal_amount);
+    const interest = parseFloat(formData.interest_rate);
+    const installments = parseInt(formData.installments_qty, 10);
+
+    if (isNaN(principal) || principal <= 0) {
+      return '-';
+    }
+
+    const rate = isNaN(interest) || interest < 0 ? 0 : interest;
+    const qty = isNaN(installments) || installments < 1 ? 1 : installments;
+
+    const total = principal * (1 + (rate / 100) * qty);
+    
+    return total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  }, [formData.principal_amount, formData.interest_rate, formData.installments_qty]);
 
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -165,6 +199,21 @@ export default function LoanFormModal({ partnerId, onClose, onSubmit }: LoanForm
             {errors.start_date && (
               <p className="text-xs text-red-500 mt-1">{errors.start_date}</p>
             )}
+          </div>
+
+          <div className="bg-blue-50 border border-blue-100 rounded-lg p-3.5 space-y-2 text-sm text-blue-900">
+            <div className="flex justify-between items-center">
+              <span className="text-gray-600 font-medium">Data de Término Estimada:</span>
+              <span className="font-bold text-gray-900" data-testid="preview-end-date">
+                {estimatedEndDate}
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-gray-600 font-medium">Valor Total Estimado:</span>
+              <span className="font-bold text-gray-900" data-testid="preview-total-amount">
+                {estimatedTotalAmount}
+              </span>
+            </div>
           </div>
 
           <div className="flex gap-3 pt-4 border-t border-gray-100">
