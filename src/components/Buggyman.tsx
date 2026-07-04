@@ -2,9 +2,11 @@ import { useState, useEffect } from 'react';
 import { Plus, Edit2, Archive, User, Coins } from 'lucide-react';
 import { Partner, PartnerType } from '../types';
 import { partnerService } from '../services/partnerService';
+import { useAuth } from '../contexts/AuthContext';
 import LoanDrawer from './LoanDrawer';
 
 export default function Buggyman() {
+  const { isSuperAdmin } = useAuth();
   const [buggymans, setBuggymans] = useState<Partner[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [selectedBuggymanForLoans, setSelectedBuggymanForLoans] = useState<Partner | null>(null);
@@ -154,16 +156,18 @@ export default function Buggyman() {
             <div className="flex items-start justify-between mb-3">
               <User className={`w-8 h-8 ${buggyman.active ? 'text-blue-600' : 'text-gray-400'}`} />
               <div className="flex gap-2">
-                <button
-                  onClick={() => {
-                    setSelectedBuggymanForLoans(buggyman);
-                    setIsLoansDrawerOpen(true);
-                  }}
-                  className="p-1 hover:bg-gray-100 rounded"
-                  title="Empréstimos"
-                >
-                  <Coins className="w-4 h-4 text-gray-600" />
-                </button>
+                {isSuperAdmin && (
+                  <button
+                    onClick={() => {
+                      setSelectedBuggymanForLoans(buggyman);
+                      setIsLoansDrawerOpen(true);
+                    }}
+                    className="p-1 hover:bg-gray-100 rounded"
+                    title="Empréstimos"
+                  >
+                    <Coins className="w-4 h-4 text-gray-600" />
+                  </button>
+                )}
                 <button
                   onClick={() => startEdit(buggyman)}
                   className="p-1 hover:bg-gray-100 rounded"
