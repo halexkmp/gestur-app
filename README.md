@@ -77,7 +77,7 @@ npm run build
 
 ## 📜 Development Guidelines
 
-This project follows strict coding standards to ensure quality and maintainability. Please refer to [.junie/guidelines.md](.junie/guidelines.md) for detailed instructions on:
+This project follows strict coding standards to ensure quality and maintainability. Please refer to [.junie/guidelines.md](AGENTS.md) for detailed instructions on:
 
 - TypeScript strictness (No `any`, explicit return types)
 - Component architecture (150-line limit, functional components)
