@@ -40,19 +40,17 @@ export default function LoanFormModal({ partnerId, onClose, onSubmit }: LoanForm
   const estimatedTotalAmount = useMemo(() => {
     const principal = parseFloat(formData.principal_amount);
     const interest = parseFloat(formData.interest_rate);
-    const installments = parseInt(formData.installments_qty, 10);
 
     if (isNaN(principal) || principal <= 0) {
       return '-';
     }
 
     const rate = isNaN(interest) || interest < 0 ? 0 : interest;
-    const qty = isNaN(installments) || installments < 1 ? 1 : installments;
 
-    const total = principal * (1 + (rate / 100) * qty);
+    const total = principal * (1 + (rate / 100));
     
     return total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-  }, [formData.principal_amount, formData.interest_rate, formData.installments_qty]);
+  }, [formData.principal_amount, formData.interest_rate]);
 
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};

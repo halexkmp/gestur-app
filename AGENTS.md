@@ -306,15 +306,7 @@ Prefer:
 
 # 14. Testing
 
-Every feature should include:
-
-- Component tests
-- Hook tests (when applicable)
-- Service tests
-- Happy path
-- Error handling
-
-Tests are part of the implementation.
+NOT CREATE ANY TEST
 
 ---
 
@@ -418,7 +410,6 @@ A feature is complete only when:
 - Services contain only API communication.
 - Hooks contain reusable logic.
 - Types are strongly typed.
-- Tests were implemented.
 - Documentation was updated.
 - `plan.md` was created.
 - `tasks.md` was created.

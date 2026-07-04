@@ -7,18 +7,18 @@ interface LoanCardProps {
   loan: Loan;
   isExpanded: boolean;
   onToggle: () => void;
-  onPayInstallment: (installmentId: string, loanId: string) => Promise<void>;
   loadingDetails: boolean;
-  onUpdateStatus: (loanId: string, status: LoanStatus) => Promise<any>;
+  onUpdateStatus: (loanId: string, status: LoanStatus) => Promise<Loan>;
+  onRefresh: () => Promise<void>;
 }
 
 export default function LoanCard({
   loan,
   isExpanded,
   onToggle,
-  onPayInstallment,
   loadingDetails,
   onUpdateStatus,
+  onRefresh,
 }: LoanCardProps) {
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [statusError, setStatusError] = useState<string | null>(null);
@@ -172,7 +172,7 @@ export default function LoanCard({
           ) : loan.installments && loan.installments.length > 0 ? (
             <InstallmentList
               installments={loan.installments}
-              onPay={(installmentId) => onPayInstallment(installmentId, loan.id)}
+              onRefresh={onRefresh}
             />
           ) : (
             <p className="text-xs text-gray-500 py-2 text-center">Nenhuma parcela disponível.</p>
