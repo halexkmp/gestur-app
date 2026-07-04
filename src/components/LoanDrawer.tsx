@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useLoans } from '../hooks/useLoans';
-import { Partner } from '../types';
+import { Partner, CreateLoanRequest } from '../types';
 import { X, Plus, Coins, Loader2, AlertCircle } from 'lucide-react';
 import LoanCard from './LoanCard';
 import LoanFormModal from './LoanFormModal';
@@ -18,7 +18,6 @@ export default function LoanDrawer({ isOpen, onClose, partner }: LoanDrawerProps
     error,
     fetchLoanDetails,
     createLoan,
-    payInstallment,
     updateLoanStatus,
   } = useLoans(partner?.id);
 
@@ -36,7 +35,7 @@ export default function LoanDrawer({ isOpen, onClose, partner }: LoanDrawerProps
       setLoadingDetailsId(loanId);
       try {
         await fetchLoanDetails(loanId);
-      } catch (err) {
+      } catch {
         // captured by hook
       } finally {
         setLoadingDetailsId(null);
@@ -44,15 +43,13 @@ export default function LoanDrawer({ isOpen, onClose, partner }: LoanDrawerProps
     }
   };
 
-  const handleCreateLoanSubmit = async (data: any) => {
+  const handleCreateLoanSubmit = async (data: CreateLoanRequest) => {
     try {
       const newLoan = await createLoan(data);
       setShowFormModal(false);
       setExpandedLoanId(newLoan.id);
       setLoadingDetailsId(newLoan.id);
       await fetchLoanDetails(newLoan.id);
-    } catch (err) {
-      throw err;
     } finally {
       setLoadingDetailsId(null);
     }
@@ -140,9 +137,7 @@ export default function LoanDrawer({ isOpen, onClose, partner }: LoanDrawerProps
                   loan={loan}
                   isExpanded={expandedLoanId === loan.id}
                   onToggle={() => handleToggleExpand(loan.id)}
-                  onPayInstallment={(installmentId, loanId) =>
-                    payInstallment(installmentId, new Date().toISOString().split('T')[0], loanId).then(() => {})
-                  }
+                  onRefresh={() => fetchLoanDetails(loan.id).then(() => {})}
                   loadingDetails={loadingDetailsId === loan.id}
                   onUpdateStatus={updateLoanStatus}
                 />

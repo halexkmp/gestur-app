@@ -6,6 +6,18 @@ export type LoanStatus =
   | 'PAID'
   | 'CANCELED';
 
+export type InstallmentStatus = 'PENDING' | 'PARTIALLY_PAID' | 'PAID';
+
+export interface LoanInstallmentPayment {
+  id: string;
+  loan_installment_id: string;
+  amount: number;
+  payment_date: string;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface LoanInstallment {
   id: string;
   loan_id: string;
@@ -14,6 +26,7 @@ export interface LoanInstallment {
   due_date: string;
   payment_date: string | null;
   paid: boolean;
+  status?: InstallmentStatus;
   created_at: string;
   updated_at: string;
 }
