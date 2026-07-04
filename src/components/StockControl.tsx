@@ -5,7 +5,7 @@ import { Product, StockChange } from '../types';
 import { productService } from '../services/productService';
 
 export default function StockControl() {
-  const { user, isAdmin } = useAuth();
+  const { isSuperAdmin } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [stockHistory, setStockHistory] = useState<StockChange[]>([]);
   const [filterProductId, setFilterProductId] = useState<string | null>(null);
@@ -47,7 +47,7 @@ export default function StockControl() {
     e.preventDefault();
     setError('');
 
-    if (!isAdmin) {
+    if (!isSuperAdmin) {
       setError('Apenas administradores podem alterar o estoque');
       return;
     }
@@ -105,7 +105,7 @@ export default function StockControl() {
           <h1 className="text-3xl font-bold text-gray-800">Controle de Estoque</h1>
           <p className="text-gray-600 mt-1">Gerencie o estoque de produtos</p>
         </div>
-        {isAdmin && (
+        {isSuperAdmin && (
           <button
             onClick={() => setShowModal(true)}
             className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition flex items-center gap-2"
@@ -116,7 +116,7 @@ export default function StockControl() {
         )}
       </div>
 
-      {!isAdmin && (
+      {!isSuperAdmin && (
         <div className="mb-6 bg-yellow-50 border border-yellow-200 text-yellow-700 px-6 py-4 rounded-lg flex items-center gap-3">
           <AlertCircle className="w-5 h-5" />
           Apenas administradores podem alterar o estoque
