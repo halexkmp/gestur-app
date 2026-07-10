@@ -1,7 +1,14 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronUp, Calendar, Percent, Loader2 } from 'lucide-react';
+import { ChevronDown,
+  ChevronUp,
+  Calendar,
+  Percent,
+  Loader2,
+  Copy,
+  Check } from 'lucide-react';
 import { Loan, LoanStatus } from '../types';
 import InstallmentList from './InstallmentList';
+import { loanService } from '../services/loanService';
 
 interface LoanCardProps {
   loan: Loan;
@@ -22,8 +29,8 @@ export default function LoanCard({
 }: LoanCardProps) {
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [statusError, setStatusError] = useState<string | null>(null);
-
-  const formatCurrency = (amount: number) => {
+  const [copying, setCopying] = useState(false);
+  const [copied, setCopied] = useState(false);  const formatCurrency = (amount: string | number) => {
     return amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   };
 
@@ -33,6 +40,122 @@ export default function LoanCard({
       return `${parts[2]}/${parts[1]}/${parts[0]}`;
     }
     return dateStr;
+  };
+
+  const getInstallmentStatus = (status: string) => {
+    switch (status) {
+      case 'PENDING':
+        return 'Pendente';
+
+      case 'PARTIALLY_PAID':
+        return 'Parcialmente Pago';
+
+      case 'PAID':
+        return 'Pago';
+
+      default:
+        return status;
+    }
+  };
+  const handleCopyReport = async (
+      e: React.MouseEvent<HTMLButtonElement>
+  ) => {
+
+    e.stopPropagation();
+
+    try {
+
+      setCopying(true);
+
+      const summary = await loanService.getSummary(loan.id);
+
+      const history = summary.installments.map(installment => {
+
+        let text =
+            `📌 Parcela ${installment.installment_number}
+Vencimento: ${formatDate(installment.due_date)}
+Valor: ${formatCurrency(installment.amount)}
+Status: ${getInstallmentStatus(installment.status)}
+`;
+
+        if (installment.payments.length === 0) {
+
+          text += "\n   Nenhum pagamento realizado.";
+
+        } else {
+
+          text += "\n   Pagamentos:\n";
+
+          installment.payments.forEach(payment => {
+
+            text += `   • ${formatDate(payment.payment_date)} — ${formatCurrency(payment.amount)}\n`;
+
+          });
+
+        }
+
+        return text;
+
+      }).join("\n━━━━━━━━━━━━━━━\n\n");
+
+      const report =
+          `📋 Atualização do seu empréstimo – CredBugueiro
+
+👤 Cliente: ${summary.partner_name}
+
+💵 Valor emprestado: ${formatCurrency(summary.principal_amount)}
+💰 Valor total do contrato: ${formatCurrency(summary.total_amount)}
+
+📅 Início: ${formatDate(summary.start_date)}
+📅 Vencimento: ${formatDate(summary.end_date)}
+
+📈 Juros: ${summary.interest_rate}%
+
+━━━━━━━━━━━━━━━
+
+📊 Resumo
+
+• Parcelas: ${summary.installments_qty}
+
+• Pagas: ${summary.paid_installments}
+
+• Parciais: ${summary.partially_paid_installments}
+
+• Pendentes: ${summary.pending_installments}
+
+• Pagamentos realizados: ${summary.total_payments}
+
+━━━━━━━━━━━━━━━
+
+${history}
+
+━━━━━━━━━━━━━━━
+
+💰 Total pago: ${formatCurrency(summary.total_paid)}
+
+💳 Saldo devedor: ${formatCurrency(summary.remaining_balance)}
+
+${summary.remaining_balance === "0.00"
+              ? "✅ Empréstimo quitado."
+              : summary.status === "DEFAULTED"
+                  ? "🚨 Contrato vencido."
+                  : "📌 Empréstimo em andamento."
+          }
+
+🤝 Qualquer dúvida, estou à disposição.`;
+
+      await navigator.clipboard.writeText(report);
+
+      setCopied(true);
+
+      setTimeout(() => setCopied(false), 2000);
+
+    } finally {
+
+      setCopying(false);
+
+    }
+
   };
 
   const getStatusBadgeClass = (status: string) => {
@@ -109,8 +232,36 @@ export default function LoanCard({
             </span>
           </div>
         </div>
-        <div className="text-gray-400">
-          {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+        <div className="flex items-center gap-2">
+          <button
+              onClick={handleCopyReport}
+              disabled={copying}
+              className="p-1 rounded hover:bg-blue-100 disabled:opacity-50"
+          >
+
+            {copying ? (
+
+                <Loader2 className="w-4 h-4 animate-spin text-blue-600"/>
+
+            ) : copied ? (
+
+                <Check className="w-4 h-4 text-green-600"/>
+
+            ) : (
+
+                <Copy className="w-4 h-4 text-blue-600"/>
+
+            )}
+
+          </button>
+
+          <div className="text-gray-400">
+            {isExpanded ? (
+                <ChevronUp className="w-5 h-5" />
+            ) : (
+                <ChevronDown className="w-5 h-5" />
+            )}
+          </div>
         </div>
       </div>
 
