@@ -1,5 +1,12 @@
 import { api } from '../lib/api';
-import { Loan, LoanInstallment, CreateLoanRequest, UpdateLoanRequest, LoanInstallmentPayment } from '../types';
+import {
+  Loan,
+  LoanInstallment,
+  CreateLoanRequest,
+  UpdateLoanRequest,
+  LoanInstallmentPayment,
+  LoanSummary
+} from '../types';
 
 export const loanService = {
   getByPartner: (partnerId: string): Promise<Loan[]> => {
@@ -26,6 +33,10 @@ export const loanService = {
 
   getInstallmentPayments: (installmentId: string): Promise<LoanInstallmentPayment[]> => {
     return api.get<LoanInstallmentPayment[]>(`/loan-installments/${installmentId}/payments`);
+  },
+
+  getSummary(id: string): Promise<LoanSummary> {
+    return api.get(`/loans/${id}/summary`);
   },
 
   createInstallmentPayment: (

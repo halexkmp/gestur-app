@@ -57,3 +57,43 @@ export interface CreateLoanRequest {
 export interface UpdateLoanRequest {
   status?: LoanStatus;
 }
+export interface LoanSummary {
+  id: string;
+  partner_id: string;
+  partner_name: string;
+  principal_amount: string;
+  interest_rate: string;
+  total_amount: string;
+  installments_qty: number;
+  due_weekday: string;
+  start_date: string;
+  end_date: string;
+  status: string;
+
+  total_paid: string;
+  remaining_balance: string;
+
+  total_payments: number;
+  paid_installments: number;
+  partially_paid_installments: number;
+  pending_installments: number;
+
+  installments: LoanSummaryInstallment[];
+}
+
+export interface LoanSummaryInstallment {
+  id: string;
+  installment_number: number;
+  amount: string;
+  due_date: string;
+  status: string;
+  payment_date: string | null;
+
+  payments: LoanSummaryPayment[];
+}
+
+export interface LoanSummaryPayment {
+  id: string;
+  amount: string;
+  payment_date: string;
+}

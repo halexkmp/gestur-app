@@ -1,3 +1,5 @@
+import {Loan} from "./loan.ts";
+
 export enum PartnerType {
   BUSINESS = 'BUSINESS',
   BUGGYMAN = 'BUGGYMAN',
@@ -14,6 +16,7 @@ export interface PartnerCustomer {
 }
 
 export interface Partner {
+  loans: Loan[] | null;
   id: string;
   name: string;
   pix_key: string | null;
