@@ -109,8 +109,6 @@ Status: ${getInstallmentStatus(installment.status)}
 📅 Início: ${formatDate(summary.start_date)}
 📅 Vencimento: ${formatDate(summary.end_date)}
 
-📈 Juros: ${summary.interest_rate}%
-
 ━━━━━━━━━━━━━━━
 
 📊 Resumo
