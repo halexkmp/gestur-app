@@ -42,3 +42,9 @@ contexts/    → shared app state (currently only AuthContext)
 ## Feature Documentation Convention
 
 Feature planning docs are managed through [spec-kit](https://github.com/github/spec-kit) (`.specify/`), via the `speckit-specify` / `speckit-plan` / `speckit-tasks` slash commands, writing to `specs/<feature>/`. The older ad hoc `docs/<feature-name>/{requirements,plan,tasks}.md` convention has been retired — do not recreate it.
+
+## API Contract Reference
+
+`specs/api/*.md` (`auth`, `employees`, `journey`, `loans`, `partners`, `products`, `reports`, `roles`, `sales`, `shared`, `users`) is the hand-maintained, human-readable contract for the backend consumed via `VITE_API_URL` — a companion to `back-end-openapi.json` that also documents real behavioral quirks the OpenAPI schema doesn't capture (write-only fields, inconsistent response shapes between endpoints, silent permission downgrades, server-computed fields, etc.). Treat it as authoritative for "what the backend actually does," not just what it's supposed to do.
+
+Because it's hand-written, it can drift from the backend. It is verified automatically before every `/speckit-specify` run via the `api-contract-check` skill, registered as a `before_specify` hook in `.specify/extensions.yml` — it cross-checks `specs/api/*.md` against `back-end-openapi.json` and surfaces the endpoints/shapes/quirks relevant to the new feature. Invoke it directly (`/api-contract-check <description>`) any time you need the same check outside of `/speckit-specify`, e.g. before `/speckit-plan` when locking in implementation details. If it reports drift, update the affected `specs/api/*.md` file(s) by hand — they exist specifically to capture behavior that doesn't come for free from OpenAPI codegen.
