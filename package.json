@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.app.json"
   },
   "dependencies": {
+    "@vercel/speed-insights": "^2.0.0",
     "firebase": "^10.7.1",
     "lucide-react": "^0.344.0",
     "react": "^18.3.1",

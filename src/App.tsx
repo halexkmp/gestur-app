@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import { useAuth } from './contexts/AuthContext';
 import Login from './components/Login';
 import Layout from './components/Layout';
@@ -82,7 +83,10 @@ function App() {
   const { user } = useAuth();
   
   return (
-    <AppContent key={user?.id || 'guest'} />
+    <>
+      <AppContent key={user?.id || 'guest'} />
+      <SpeedInsights />
+    </>
   );
 }
 
