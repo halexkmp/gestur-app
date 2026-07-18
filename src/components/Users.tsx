@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Plus, Edit2, UserPlus, Shield, ShieldAlert, UserCheck, UserX } from 'lucide-react';
-import { User, Role } from '../types';
+import { User, Role, UserRole } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { userService } from '../services/userService';
 
@@ -61,7 +61,7 @@ export default function Users() {
           password: formData.password,
           roles: formData.roleIds.map(id => {
             const role = roles.find(r => r.id === id);
-            return role ? role.name : 'OPERATOR';
+            return (role ? role.name : 'OPERATOR') as UserRole;
           }),
         };
         await userService.create(userData);

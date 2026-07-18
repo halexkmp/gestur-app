@@ -18,3 +18,18 @@ export interface TokenResponse {
   access_token: string;
   token_type: string;
 }
+
+export interface CreateUserRequest {
+  name: string;
+  username: string;
+  password: string;
+  roles: UserRole[]; // role NAMES, e.g. ["EMPLOYEE"] — matches Create User's documented shape
+}
+
+export interface UpdateUserRequest {
+  name?: string;
+  username?: string;
+  password?: string;
+  roles?: { id: string }[]; // role IDs — different shape from Create User
+  active?: boolean;
+}

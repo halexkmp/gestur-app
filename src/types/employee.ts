@@ -5,6 +5,7 @@ export interface Employee {
   salary: number;
   active: boolean;
   start_date?: string | null; // ISO date
+  user_id?: string | null; // id of the linked User account, or null/absent if none
 }
 
 export interface CreateEmployeeRequest {
@@ -13,6 +14,7 @@ export interface CreateEmployeeRequest {
   salary: number;
   active?: boolean;
   start_date?: string | null; // ISO date
+  user_id?: string | null; // optional link to an existing User account
 }
 
 export interface UpdateEmployeeRequest {
@@ -21,6 +23,8 @@ export interface UpdateEmployeeRequest {
   salary?: number;
   active?: boolean;
   start_date?: string | null; // ISO date
+  // omitted = leave link unchanged; "<uuid>" = set/replace; null = explicitly clear
+  user_id?: string | null;
 }
 
 export interface SalaryAdvance {
