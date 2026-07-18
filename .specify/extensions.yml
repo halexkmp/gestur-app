@@ -5,10 +5,9 @@ hooks:
       optional: false
       enabled: true
       description: >-
-        Cross-checks specs/api/*.md against back-end-openapi.json and surfaces
-        the endpoints, shapes, and known quirks relevant to the feature being
-        specified, before spec.md is written.
+        Scans specs/api/*.md (the sole source of truth for backend behavior)
+        and surfaces the endpoints, shapes, and known quirks relevant to the
+        feature being specified, before spec.md is written.
       prompt: >-
-        Run the api-contract-check skill: verify specs/api/*.md is still in
-        sync with back-end-openapi.json, scan the contract for anything
+        Run the api-contract-check skill: scan specs/api/*.md for anything
         relevant to this feature, and report findings.

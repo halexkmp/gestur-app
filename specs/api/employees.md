@@ -35,10 +35,23 @@ salary
 pix_key    # nullable
 active
 start_date
+user_id    # nullable — id of the linked User account, or null if none
 ```
 
-Create request: `name, pix_key?, salary (>=0), active (default true), start_date`.
-Update request (PUT, partial): all fields optional.
+Create request: `name, pix_key?, salary (>=0), active (default true), start_date, user_id?`.
+
+- `user_id` is optional. If supplied, it must reference an existing user account that is
+  not already linked to a different employee.
+- Referencing a `user_id` that doesn't exist → `404 Not Found`.
+- Referencing a `user_id` already linked to a different employee → `400 Bad Request`.
+
+Update request (PUT, partial): all fields optional, including `user_id`.
+
+- Omitting `user_id` leaves the employee's current linked user unchanged.
+- Sending `"user_id": "<uuid>"` sets or changes the linked user.
+- Sending `"user_id": null` explicitly clears the linked user.
+- Referencing a `user_id` that doesn't exist → `404 Not Found`.
+- Referencing a `user_id` already linked to a different employee → `400 Bad Request`.
 
 ---
 

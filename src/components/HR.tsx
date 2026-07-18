@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Plus, Edit2, Trash2, ShieldAlert, FileText, Users, DollarSign, Calendar } from 'lucide-react';
+import { Plus, Edit2, Trash2, ShieldAlert, FileText, Users, DollarSign, Calendar, Link2 } from 'lucide-react';
 import { Employee, SalaryAdvance, SalarySummaryResponse } from '../types';
 import { employeeService } from '../services/employeeService';
 import { useAuth } from '../contexts/AuthContext';
+import EmployeeFormModal from './EmployeeFormModal';
 
 export default function HR() {
   const { isSuperAdmin, isHR } = useAuth();
@@ -10,18 +11,10 @@ export default function HR() {
 
   const [activeTab, setActiveTab] = useState<'employees' | 'advances'>('employees');
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [loading, setLoading] = useState(false);
 
   // Employee form state
   const [showEmployeeForm, setShowEmployeeForm] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
-  const [employeeForm, setEmployeeForm] = useState({
-    name: '',
-    pix_key: '' as string | null,
-    salary: 0,
-    active: true,
-    start_date: '' as string | null,
-  });
 
   // Report filters
   const now = new Date();
@@ -67,52 +60,8 @@ export default function HR() {
     }
   };
 
-  const submitEmployee = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      if (editingEmployee) {
-        await employeeService.update(editingEmployee.id, {
-          name: employeeForm.name,
-          pix_key: employeeForm.pix_key || null,
-          salary: Number(employeeForm.salary),
-          active: employeeForm.active,
-          start_date: employeeForm.start_date || null,
-        });
-      } else {
-        await employeeService.create({
-          name: employeeForm.name,
-          pix_key: employeeForm.pix_key || null,
-          salary: Number(employeeForm.salary),
-          active: employeeForm.active,
-          start_date: employeeForm.start_date || null,
-        });
-      }
-      await loadEmployees();
-      resetEmployeeForm();
-    } catch (e) {
-      console.error('Failed to save employee', e);
-      alert('Erro ao salvar funcionário');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const startEditEmployee = (emp: Employee) => {
-    let formattedDate = '';
-    if (emp.start_date) {
-      // Ensure date is in YYYY-MM-DD format for the input type="date"
-      formattedDate = emp.start_date.split('T')[0];
-    }
-
     setEditingEmployee(emp);
-    setEmployeeForm({
-      name: emp.name,
-      pix_key: emp.pix_key ?? '',
-      salary: emp.salary,
-      active: emp.active,
-      start_date: formattedDate,
-    });
     setShowEmployeeForm(true);
   };
 
@@ -127,8 +76,7 @@ export default function HR() {
     }
   };
 
-  const resetEmployeeForm = () => {
-    setEmployeeForm({ name: '', pix_key: '', salary: 0, active: true, start_date: '' });
+  const closeEmployeeForm = () => {
     setEditingEmployee(null);
     setShowEmployeeForm(false);
   };
@@ -217,7 +165,10 @@ export default function HR() {
         </div>
         {activeTab === 'employees' && (
           <button
-            onClick={() => setShowEmployeeForm(true)}
+            onClick={() => {
+              setEditingEmployee(null);
+              setShowEmployeeForm(true);
+            }}
             className="w-full sm:w-auto bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition flex items-center justify-center gap-2"
           >
             <Plus className="w-5 h-5" />
@@ -263,13 +214,14 @@ export default function HR() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PIX</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Salário</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Conta</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {employees.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-10 text-center text-gray-500">
+                    <td colSpan={6} className="px-6 py-10 text-center text-gray-500">
                       Nenhum funcionário cadastrado
                     </td>
                   </tr>
@@ -288,6 +240,15 @@ export default function HR() {
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${emp.active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                           {emp.active ? 'Ativo' : 'Inativo'}
                         </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap hidden md:table-cell">
+                        {emp.user_id ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            <Link2 className="w-3 h-3" /> Vinculada
+                          </span>
+                        ) : (
+                          <span className="text-xs text-gray-400">Sem conta</span>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div className="flex justify-end gap-2">
@@ -519,73 +480,13 @@ export default function HR() {
         </div>
       )}
 
-      {/* Modal: employee form */}
       {showEmployeeForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start sm:items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 my-auto">
-            <h2 className="text-xl font-bold text-gray-800 mb-4">{editingEmployee ? 'Editar Funcionário' : 'Novo Funcionário'}</h2>
-            <form onSubmit={submitEmployee} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nome</label>
-                <input
-                  type="text"
-                  value={employeeForm.name}
-                  onChange={(e) => setEmployeeForm({ ...employeeForm, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Chave PIX</label>
-                <input
-                  type="text"
-                  value={employeeForm.pix_key || ''}
-                  onChange={(e) => setEmployeeForm({ ...employeeForm, pix_key: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Data de Início</label>
-                <input
-                  type="date"
-                  value={employeeForm.start_date || ''}
-                  onChange={(e) => setEmployeeForm({ ...employeeForm, start_date: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Salário</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={employeeForm.salary}
-                  onChange={(e) => setEmployeeForm({ ...employeeForm, salary: Number(e.target.value) })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  required
-                />
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  id="active"
-                  type="checkbox"
-                  checked={employeeForm.active}
-                  onChange={(e) => setEmployeeForm({ ...employeeForm, active: e.target.checked })}
-                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                />
-                <label htmlFor="active" className="text-sm text-gray-700">Ativo</label>
-              </div>
-              <div className="flex gap-3 pt-2">
-                <button type="submit" disabled={loading} className="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition disabled:opacity-50">
-                  {loading ? 'Salvando...' : 'Confirmar'}
-                </button>
-                <button type="button" onClick={resetEmployeeForm} className="flex-1 bg-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-300 transition">
-                  Cancelar
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <EmployeeFormModal
+          employee={editingEmployee}
+          employees={employees}
+          onClose={closeEmployeeForm}
+          onSaved={loadEmployees}
+        />
       )}
     </div>
   );
