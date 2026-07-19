@@ -1,15 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Plus, Edit2, Trash2, ShieldAlert, FileText, Users, DollarSign, Calendar, Link2 } from 'lucide-react';
+import { Plus, Edit2, Trash2, ShieldAlert, FileText, Users, DollarSign, Calendar, Link2, Clock } from 'lucide-react';
 import { Employee, SalaryAdvance, SalarySummaryResponse } from '../types';
 import { employeeService } from '../services/employeeService';
 import { useAuth } from '../contexts/AuthContext';
 import EmployeeFormModal from './EmployeeFormModal';
+import LatenessConfigPanel from './LatenessConfigPanel';
 
 export default function HR() {
   const { isSuperAdmin, isHR } = useAuth();
   const canAccess = useMemo(() => isSuperAdmin || isHR, [isSuperAdmin, isHR]);
 
-  const [activeTab, setActiveTab] = useState<'employees' | 'advances'>('employees');
+  const [activeTab, setActiveTab] = useState<'employees' | 'advances' | 'lateness'>('employees');
   const [employees, setEmployees] = useState<Employee[]>([]);
 
   // Employee form state
@@ -201,9 +202,22 @@ export default function HR() {
           <DollarSign className="w-4 h-4" />
           Adiantamentos
         </button>
+        <button
+          onClick={() => setActiveTab('lateness')}
+          className={`px-6 py-3 text-sm font-medium transition flex items-center gap-2 border-b-2 ${
+            activeTab === 'lateness'
+              ? 'border-blue-600 text-blue-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+          }`}
+        >
+          <Clock className="w-4 h-4" />
+          Configuração de Atrasos
+        </button>
       </div>
 
-      {activeTab === 'employees' ? (
+      {activeTab === 'lateness' ? (
+        <LatenessConfigPanel />
+      ) : activeTab === 'employees' ? (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[700px]">
