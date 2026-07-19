@@ -20,4 +20,12 @@ export const employeeService = {
   // Salary Summary report (per employee)
   getSalarySummary: (employee_id: string, params?: { month?: number; year?: number }) =>
     api.get<SalarySummaryResponse>(`/employees/salary-summary/${employee_id}`, { params }),
+
+  // Self-service (current authenticated employee's own data).
+  // Depends on a backend contract addition not yet implemented — see
+  // specs/002-lateness-salary-visibility/contracts/employee-self-service-salary.md.
+  getMySalarySummary: (params?: { month?: number; year?: number }) =>
+    api.get<SalarySummaryResponse>('/employees/me/salary-summary', { params }),
+  getMySalaryAdvances: (params?: { month?: number; year?: number }) =>
+    api.get<SalaryAdvance[]>('/employees/me/salary-advances', { params }),
 };

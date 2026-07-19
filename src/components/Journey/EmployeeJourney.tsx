@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { MapPin, Clock, History, AlertCircle, Camera } from 'lucide-react';
 import { useJourney } from '../../hooks/useJourney';
+import { EmployeeSalarySummary } from './EmployeeSalarySummary';
 
 export const EmployeeJourney: React.FC = () => {
   const { history, loading, error, fetchHistory, registerJourney } = useJourney();
@@ -178,7 +179,6 @@ export const EmployeeJourney: React.FC = () => {
                   className="rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
                 >
                   Capturar
-                  Capturar
                 </button>
                 <button
                   type="button"
@@ -221,6 +221,8 @@ export const EmployeeJourney: React.FC = () => {
           Sua localização e horário serão capturados automaticamente.
         </p>
       </div>
+
+      <EmployeeSalarySummary />
 
       <div className="bg-white rounded-lg shadow-md overflow-hidden">
         <div className="p-4 bg-gray-50 border-b flex items-center gap-2">

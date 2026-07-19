@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { Search, Edit2, Trash2, User as UserIcon, AlertCircle, Save, X, Camera } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Search, Edit2, Trash2, User as UserIcon, AlertCircle, AlertTriangle, Save, X, Camera } from 'lucide-react';
 import { useJourney } from '../../hooks/useJourney';
+import { useLatenessConfig } from '../../hooks/useLatenessConfig';
 import { userService } from '../../services/userService';
 import { JourneyResponse, User } from '../../types';
 
@@ -9,8 +10,14 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 const buildSelfieProofUrl = (selfieId: string): string =>
   `${API_URL}/journey/selfie?selfie_id=${encodeURIComponent(selfieId)}`;
 
+const expectedTimeToMinutes = (time: string): number => {
+  const [hours, minutes] = time.split(':').map(Number);
+  return hours * 60 + minutes;
+};
+
 export const AdminJourney: React.FC = () => {
   const { history, loading, error, fetchAdminHistory, updateJourney, deleteJourney } = useJourney();
+  const { config: latenessConfig } = useLatenessConfig();
   const [users, setUsers] = useState<User[]>([]);
   const [usersError, setUsersError] = useState<string | null>(null);
   const [filters, setFilters] = useState({
@@ -18,6 +25,42 @@ export const AdminJourney: React.FC = () => {
     start_date: '',
     end_date: '',
   });
+  const [onlyDelayed, setOnlyDelayed] = useState(false);
+
+  const latenessEnabled = Boolean(latenessConfig?.enabled);
+
+  // Only the earliest record of each user/day counts as the check-in used for lateness,
+  // matching the deduction rule in specs/api/employees.md.
+  const delayMinutesByRecordId = useMemo(() => {
+    if (!latenessConfig?.enabled) return {} as Record<string, number>;
+
+    const earliestByDay = new Map<string, JourneyResponse>();
+    history.forEach((record) => {
+      const dayKey = `${record.user_id}|${new Date(record.timestamp).toLocaleDateString('pt-BR')}`;
+      const current = earliestByDay.get(dayKey);
+      if (!current || new Date(record.timestamp) < new Date(current.timestamp)) {
+        earliestByDay.set(dayKey, record);
+      }
+    });
+
+    const expectedMinutes = expectedTimeToMinutes(latenessConfig.expected_entrance_time);
+    const map: Record<string, number> = {};
+    earliestByDay.forEach((record) => {
+      const checkInDate = new Date(record.timestamp);
+      const actualMinutes = checkInDate.getHours() * 60 + checkInDate.getMinutes();
+      const delay = actualMinutes - expectedMinutes;
+      if (delay > latenessConfig.tolerance_minutes) {
+        map[record.id] = delay;
+      }
+    });
+    return map;
+  }, [history, latenessConfig]);
+
+  const visibleHistory = onlyDelayed
+    ? history.filter((record) => delayMinutesByRecordId[record.id] !== undefined)
+    : history;
+
+  const columnCount = latenessEnabled ? 6 : 5;
 
   // Edit Modal State
   const [editingRecord, setEditingRecord] = useState<JourneyResponse | null>(null);
@@ -138,6 +181,18 @@ export const AdminJourney: React.FC = () => {
             Filtrar
           </button>
         </div>
+
+        {latenessEnabled && (
+          <label className="mt-4 flex items-center gap-2 text-sm text-gray-700">
+            <input
+              type="checkbox"
+              checked={onlyDelayed}
+              onChange={(e) => setOnlyDelayed(e.target.checked)}
+              className="w-4 h-4 rounded border-gray-300 text-red-600 focus:ring-red-500"
+            />
+            Mostrar apenas atrasados
+          </label>
+        )}
       </div>
 
       {error && (
@@ -162,28 +217,33 @@ export const AdminJourney: React.FC = () => {
               <th className="p-4 font-semibold text-gray-600">Data/Hora</th>
               <th className="p-4 font-semibold text-gray-600">Coordenadas</th>
               <th className="p-4 font-semibold text-gray-600">Selfie</th>
+              {latenessEnabled && <th className="p-4 font-semibold text-gray-600">Atraso</th>}
               <th className="p-4 font-semibold text-gray-600">Ações</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {loading ? (
               <tr>
-                <td colSpan={5} className="p-8 text-center">
+                <td colSpan={columnCount} className="p-8 text-center">
                   <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-600 border-t-transparent mx-auto" />
                 </td>
               </tr>
-            ) : history.length === 0 ? (
+            ) : visibleHistory.length === 0 ? (
               <tr>
-                <td colSpan={5} className="p-8 text-center text-gray-500">Nenhum registro encontrado.</td>
+                <td colSpan={columnCount} className="p-8 text-center text-gray-500">
+                  {onlyDelayed ? 'Nenhum registro atrasado encontrado.' : 'Nenhum registro encontrado.'}
+                </td>
               </tr>
             ) : (
-              history.map((record) => {
+              visibleHistory.map((record) => {
                 const user = users.find(u => u.id === record.user_id);
                 const selfieId = record.selfie_id?.trim();
                 const hasSelfie = Boolean(selfieId);
+                const delayMinutes = delayMinutesByRecordId[record.id];
+                const isDelayed = delayMinutes !== undefined;
 
                 return (
-                  <tr key={record.id} className="hover:bg-gray-50">
+                  <tr key={record.id} className={isDelayed ? 'bg-red-50 hover:bg-red-100/70' : 'hover:bg-gray-50'}>
                     <td className="p-4">
                       <div className="flex items-center gap-2">
                         <UserIcon size={16} className="text-gray-400" />
@@ -217,9 +277,21 @@ export const AdminJourney: React.FC = () => {
                         <span className="text-xs text-gray-400">Sem selfie disponível</span>
                       )}
                     </td>
+                    {latenessEnabled && (
+                      <td className="p-4">
+                        {isDelayed ? (
+                          <span className="inline-flex items-center gap-1 text-sm font-medium text-red-700">
+                            <AlertTriangle size={14} />
+                            {delayMinutes} min
+                          </span>
+                        ) : (
+                          <span className="text-sm text-gray-400">-</span>
+                        )}
+                      </td>
+                    )}
                     <td className="p-4">
                       <div className="flex gap-2">
-                        <button 
+                        <button
                           onClick={() => handleEdit(record)}
                           data-testid={`edit-${record.id}`}
                           className="p-1 text-blue-600 hover:bg-blue-50 rounded transition-colors"
