@@ -60,12 +60,15 @@ export interface SalarySummaryResponse {
 export interface EmployeePaycheck {
   employee_id: string;
   employee_name: string;
-  month: number;
-  year: number;
-  gross_salary: number | string;
-  advances_total: number | string;
-  late_delay_minutes: number;
-  late_days_count: number;
-  late_deduction_total: number | string;
-  net_salary: number | string;
+  base_salary: number | string;
+  // Everything below comes from the per-employee salary-summary endpoint and is only
+  // populated once the row has been expanded (see useEmployeePaychecks.loadSummaryForEmployee).
+  month?: number;
+  year?: number;
+  gross_salary?: number | string;
+  advances_total?: number | string;
+  late_delay_minutes?: number;
+  late_days_count?: number;
+  late_deduction_total?: number | string;
+  net_salary?: number | string;
 }

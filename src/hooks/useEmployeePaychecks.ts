@@ -12,38 +12,26 @@ export const useEmployeePaychecks = () => {
   const [error, setError] = useState<boolean>(false);
   const [advancesByEmployee, setAdvancesByEmployee] = useState<Record<string, SalaryAdvance[]>>({});
 
+  // Lists active employees only; the (expensive) per-employee salary summary is fetched
+  // lazily via loadSummaryForEmployee, only when that employee's row is expanded.
   const fetchPaychecks = useCallback(async () => {
     setLoading(true);
     setError(false);
     try {
       const employees = await employeeService.getAll();
       const activeEmployees = employees.filter(e => e.active);
-      const summaries = await Promise.all(
-        activeEmployees.map(e => employeeService.getSalarySummary(e.id, { month, year }))
-      );
-      const composed: EmployeePaycheck[] = activeEmployees.map((employee, index) => {
-        const summary = summaries[index];
-        return {
-          employee_id: employee.id,
-          employee_name: employee.name,
-          month: summary.month,
-          year: summary.year,
-          gross_salary: summary.gross_salary,
-          advances_total: summary.advances_total,
-          late_delay_minutes: summary.late_delay_minutes,
-          late_days_count: summary.late_days_count,
-          late_deduction_total: summary.late_deduction_total,
-          net_salary: summary.net_salary,
-        };
-      });
-      setPaychecks(composed);
+      setPaychecks(activeEmployees.map(employee => ({
+        employee_id: employee.id,
+        employee_name: employee.name,
+        base_salary: employee.salary,
+      })));
     } catch {
       setPaychecks([]);
       setError(true);
     } finally {
       setLoading(false);
     }
-  }, [month, year]);
+  }, []);
 
   useEffect(() => {
     fetchPaychecks();
@@ -70,6 +58,8 @@ export const useEmployeePaychecks = () => {
         p.employee_id === employeeId
           ? {
             ...p,
+            month: summary.month,
+            year: summary.year,
             gross_salary: summary.gross_salary,
             advances_total: summary.advances_total,
             late_delay_minutes: summary.late_delay_minutes,
@@ -83,6 +73,10 @@ export const useEmployeePaychecks = () => {
       // Leave existing figures in place rather than clearing them on a transient failure.
     }
   }, [month, year]);
+
+  // Alias kept for callers that only care about "load this employee's summary" —
+  // reuses the same fetch-and-merge behavior as refreshEmployee.
+  const loadSummaryForEmployee = refreshEmployee;
 
   const createAdvance = useCallback(async (payload: CreateSalaryAdvanceRequest) => {
     await employeeService.createSalaryAdvance(payload);
@@ -111,6 +105,7 @@ export const useEmployeePaychecks = () => {
     fetchPaychecks,
     getAdvancesForEmployee,
     loadAdvancesForEmployee,
+    loadSummaryForEmployee,
     createAdvance,
     deleteAdvance,
   };

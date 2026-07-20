@@ -19,6 +19,7 @@ export default function SalaryTab() {
     fetchPaychecks,
     getAdvancesForEmployee,
     loadAdvancesForEmployee,
+    loadSummaryForEmployee,
     createAdvance,
     deleteAdvance,
   } = useEmployeePaychecks();
@@ -32,6 +33,12 @@ export default function SalaryTab() {
     setExpandedEmployeeId(next);
     if (next && getAdvancesForEmployee(employeeId) === undefined) {
       loadAdvancesForEmployee(employeeId);
+    }
+    if (next) {
+      const paycheck = paychecks.find(p => p.employee_id === employeeId);
+      if (paycheck && paycheck.gross_salary === undefined) {
+        loadSummaryForEmployee(employeeId);
+      }
     }
   };
 

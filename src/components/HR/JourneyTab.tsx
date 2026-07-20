@@ -15,6 +15,8 @@ const expectedTimeToMinutes = (time: string): number => {
   return hours * 60 + minutes;
 };
 
+const today = new Date().toISOString().split('T')[0];
+
 export default function JourneyTab() {
   const { history, loading, error, fetchAdminHistory, updateJourney, deleteJourney } = useJourney();
   const { config: latenessConfig } = useLatenessConfig();
@@ -22,8 +24,8 @@ export default function JourneyTab() {
   const [usersError, setUsersError] = useState<string | null>(null);
   const [filters, setFilters] = useState({
     user_id: '',
-    start_date: '',
-    end_date: '',
+    start_date: today,
+    end_date: today,
   });
   const [onlyDelayed, setOnlyDelayed] = useState(false);
 
@@ -90,8 +92,8 @@ export default function JourneyTab() {
   const handleSearch = (): void => {
     fetchAdminHistory({
       user_id: filters.user_id || null,
-      start_date: filters.start_date ? new Date(filters.start_date).toISOString() : null,
-      end_date: filters.end_date ? new Date(filters.end_date).toISOString() : null,
+      start_date: filters.start_date ? new Date(`${filters.start_date}T00:00:00`).toISOString() : null,
+      end_date: filters.end_date ? new Date(`${filters.end_date}T23:59:59`).toISOString() : null,
     });
   };
 
