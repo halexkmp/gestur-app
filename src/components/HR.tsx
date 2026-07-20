@@ -1,17 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Plus, Edit2, Trash2, ShieldAlert, Users, Banknote, Link2, Clock } from 'lucide-react';
+import { Plus, Edit2, Trash2, ShieldAlert, Users, Banknote, Link2, Clock, MapPin } from 'lucide-react';
 import { Employee } from '../types';
 import { employeeService } from '../services/employeeService';
 import { useAuth } from '../contexts/AuthContext';
 import EmployeeFormModal from './EmployeeFormModal';
 import LatenessConfigPanel from './LatenessConfigPanel';
 import SalaryTab from './HR/SalaryTab';
+import JourneyTab from './HR/JourneyTab';
 
 export default function HR() {
   const { isSuperAdmin, isHR } = useAuth();
   const canAccess = useMemo(() => isSuperAdmin || isHR, [isSuperAdmin, isHR]);
 
-  const [activeTab, setActiveTab] = useState<'employees' | 'salary' | 'lateness'>('employees');
+  const [activeTab, setActiveTab] = useState<'employees' | 'salary' | 'journey' | 'lateness'>('employees');
   const [employees, setEmployees] = useState<Employee[]>([]);
 
   // Employee form state
@@ -110,6 +111,17 @@ export default function HR() {
           Salário
         </button>
         <button
+          onClick={() => setActiveTab('journey')}
+          className={`px-6 py-3 text-sm font-medium transition flex items-center gap-2 border-b-2 ${
+            activeTab === 'journey'
+              ? 'border-blue-600 text-blue-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+          }`}
+        >
+          <MapPin className="w-4 h-4" />
+          Jornadas
+        </button>
+        <button
           onClick={() => setActiveTab('lateness')}
           className={`px-6 py-3 text-sm font-medium transition flex items-center gap-2 border-b-2 ${
             activeTab === 'lateness'
@@ -188,6 +200,8 @@ export default function HR() {
             </table>
           </div>
         </div>
+      ) : activeTab === 'journey' ? (
+        <JourneyTab />
       ) : (
         <SalaryTab />
       )}

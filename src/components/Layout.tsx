@@ -34,7 +34,6 @@ export default function Layout({ children, currentPage, onNavigate }: LayoutProp
     { id: 'reports', label: 'Relatórios', icon: TrendingUp, adminOnly: false },
     { id: 'rh', label: 'Recursos Humanos', icon: Users, adminOnly: false },
     { id: 'journey', label: 'Minha Jornada', icon: Clock, adminOnly: false },
-    { id: 'admin-journey', label: 'Gerenciar Jornadas', icon: Clock, adminOnly: true },
     { id: 'users', label: 'Usuários', icon: UserCog, adminOnly: false }, // Removed adminOnly to handle manually
     { id: 'audit', label: 'Auditoria', icon: FileText, adminOnly: true },
   ];
@@ -48,7 +47,6 @@ export default function Layout({ children, currentPage, onNavigate }: LayoutProp
     if (item.id === 'rh') return isSuperAdmin || isHR;
     if (item.id === 'users') return isSuperAdmin;
     if (item.id === 'journey') return isEmployee;
-    if (item.id === 'admin-journey') return isSuperAdmin || isHR;
     return !item.adminOnly || isAdmin;
   });
 

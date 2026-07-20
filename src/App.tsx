@@ -13,7 +13,6 @@ import Users from './components/Users';
 import Audit from './components/Audit';
 import HR from './components/HR.tsx';
 import { EmployeeJourney } from './components/Journey/EmployeeJourney';
-import { AdminJourney } from './components/Journey/AdminJourney';
 
 function AppContent() {
   const { user, loading, isEmployee } = useAuth();
@@ -65,8 +64,6 @@ function AppContent() {
         return <HR />;
       case 'journey':
         return <EmployeeJourney />;
-      case 'admin-journey':
-        return <AdminJourney />;
       default:
         return <Sales />;
     }

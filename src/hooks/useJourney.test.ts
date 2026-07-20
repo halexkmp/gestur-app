@@ -85,4 +85,58 @@ describe('useJourney', () => {
 
     expect(result.current.error).toBe('Location permission denied. Please enable location access.');
   });
+
+  it('should fetch admin history with filters', async () => {
+    const mockHistory = [
+      { id: '1', user_id: 'u1', timestamp: '2024-01-01T10:00:00Z', latitude: 10, longitude: 20 },
+    ];
+    vi.mocked(journeyService.getAdminHistory).mockResolvedValue(mockHistory);
+
+    const { result } = renderHook(() => useJourney());
+
+    await act(async () => {
+      await result.current.fetchAdminHistory({ user_id: 'u1', start_date: null, end_date: null });
+    });
+
+    expect(journeyService.getAdminHistory).toHaveBeenCalledWith({ user_id: 'u1', start_date: null, end_date: null });
+    expect(result.current.history).toEqual(mockHistory);
+    expect(result.current.loading).toBe(false);
+  });
+
+  it('should update a journey record', async () => {
+    const updated = { id: '1', user_id: 'u1', timestamp: '2024-01-02T10:00:00Z', latitude: 11, longitude: 21 };
+    vi.mocked(journeyService.update).mockResolvedValue(updated);
+
+    const { result } = renderHook(() => useJourney());
+
+    await act(async () => {
+      await result.current.updateJourney('1', {
+        timestamp: '2024-01-02T10:00:00Z',
+        latitude: 11,
+        longitude: 21,
+        edit_reason: 'Corrected GPS drift',
+      });
+    });
+
+    expect(journeyService.update).toHaveBeenCalledWith('1', {
+      timestamp: '2024-01-02T10:00:00Z',
+      latitude: 11,
+      longitude: 21,
+      edit_reason: 'Corrected GPS drift',
+    });
+    expect(result.current.error).toBe(null);
+  });
+
+  it('should delete a journey record', async () => {
+    vi.mocked(journeyService.delete).mockResolvedValue(undefined);
+
+    const { result } = renderHook(() => useJourney());
+
+    await act(async () => {
+      await result.current.deleteJourney('1');
+    });
+
+    expect(journeyService.delete).toHaveBeenCalledWith('1');
+    expect(result.current.error).toBe(null);
+  });
 });

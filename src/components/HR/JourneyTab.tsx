@@ -15,7 +15,7 @@ const expectedTimeToMinutes = (time: string): number => {
   return hours * 60 + minutes;
 };
 
-export const AdminJourney: React.FC = () => {
+export default function JourneyTab() {
   const { history, loading, error, fetchAdminHistory, updateJourney, deleteJourney } = useJourney();
   const { config: latenessConfig } = useLatenessConfig();
   const [users, setUsers] = useState<User[]>([]);
@@ -108,7 +108,7 @@ export const AdminJourney: React.FC = () => {
   const handleSaveEdit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
     if (!editingRecord) return;
-    
+
     try {
       await updateJourney(editingRecord.id, {
         timestamp: new Date(editForm.timestamp).toISOString(),
@@ -125,7 +125,7 @@ export const AdminJourney: React.FC = () => {
 
   const handleDelete = async (id: string): Promise<void> => {
     if (!window.confirm('Deseja realmente excluir este registro? Esta ação é irreversível (soft-delete).')) return;
-    
+
     try {
       await deleteJourney(id);
       handleSearch();
@@ -298,7 +298,7 @@ export const AdminJourney: React.FC = () => {
                         >
                           <Edit2 size={18} />
                         </button>
-                        <button 
+                        <button
                           onClick={() => handleDelete(record.id)}
                           data-testid={`delete-${record.id}`}
                           className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
@@ -419,4 +419,4 @@ export const AdminJourney: React.FC = () => {
       )}
     </div>
   );
-};
+}
