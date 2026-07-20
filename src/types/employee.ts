@@ -56,3 +56,16 @@ export interface SalarySummaryResponse {
   late_deduction_total: number | string;
   net_salary: number | string;
 }
+
+export interface EmployeePaycheck {
+  employee_id: string;
+  employee_name: string;
+  month: number;
+  year: number;
+  gross_salary: number | string;
+  advances_total: number | string;
+  late_delay_minutes: number;
+  late_days_count: number;
+  late_deduction_total: number | string;
+  net_salary: number | string;
+}
