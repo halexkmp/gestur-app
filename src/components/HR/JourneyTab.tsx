@@ -17,6 +17,15 @@ const expectedTimeToMinutes = (time: string): number => {
 
 const today = new Date().toISOString().split('T')[0];
 
+// <input type="datetime-local"> reads/writes its value as local wall-clock time with no
+// timezone info, so a UTC ISO timestamp from the API must be converted to local time here
+// (not string-sliced) or the modal shows/saves the wrong instant.
+const toDatetimeLocalValue = (isoTimestamp: string): string => {
+  const date = new Date(isoTimestamp);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+};
+
 export default function JourneyTab() {
   const { history, loading, error, fetchAdminHistory, updateJourney, deleteJourney } = useJourney();
   const { config: latenessConfig } = useLatenessConfig();
@@ -100,7 +109,7 @@ export default function JourneyTab() {
   const handleEdit = (record: JourneyResponse): void => {
     setEditingRecord(record);
     setEditForm({
-      timestamp: record.timestamp.split('.')[0], // remove milliseconds for datetime-local input
+      timestamp: toDatetimeLocalValue(record.timestamp),
       latitude: record.latitude,
       longitude: record.longitude,
       edit_reason: '',
