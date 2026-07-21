@@ -72,3 +72,75 @@ export interface EmployeePaycheck {
   late_deduction_total?: number | string;
   net_salary?: number | string;
 }
+
+export interface EmployeeWeeklySchedule {
+  employee_id: string;
+  monday: boolean;
+  tuesday: boolean;
+  wednesday: boolean;
+  thursday: boolean;
+  friday: boolean;
+  saturday: boolean;
+  sunday: boolean;
+}
+
+export interface UpdateEmployeeWeeklyScheduleRequest {
+  monday: boolean;
+  tuesday: boolean;
+  wednesday: boolean;
+  thursday: boolean;
+  friday: boolean;
+  saturday: boolean;
+  sunday: boolean;
+}
+
+export interface JustifiedAbsence {
+  id: string;
+  employee_id: string;
+  absence_date: string; // ISO date
+  reason?: string | null;
+  created_at: string;
+}
+
+export interface CreateJustifiedAbsenceRequest {
+  employee_id: string;
+  absence_date: string; // ISO date
+  reason?: string | null;
+}
+
+export type AttendanceDayStatus = 'PRESENT' | 'JUSTIFIED_ABSENCE' | 'UNJUSTIFIED_ABSENCE';
+
+export interface AttendanceDay {
+  date: string; // ISO date
+  status: AttendanceDayStatus;
+}
+
+export interface AttendanceVerificationResponse {
+  employee_id: string;
+  month: number;
+  year: number;
+  days: AttendanceDay[];
+  unjustified_absence_count: number;
+}
+
+// Client-side view model — never sent to or received from the backend. See
+// specs/005-hr-schedule-tab/data-model.md for the derivation rules that produce these.
+export type CalendarCellState =
+  | 'WORKED'
+  | 'JUSTIFIED_ABSENCE'
+  | 'UNJUSTIFIED_ABSENCE'
+  | 'NOT_SCHEDULED'
+  | 'NO_DATA';
+
+export interface CalendarDayCell {
+  date: string; // ISO date (yyyy-MM-dd)
+  state: CalendarCellState;
+  detail?: string; // human-readable reason shown in a tooltip
+}
+
+export interface EmployeeScheduleRow {
+  employee: Employee;
+  hasSchedule: boolean;
+  days: CalendarDayCell[];
+  unjustifiedAbsenceCount: number;
+}

@@ -1,8 +1,15 @@
 # Employees API
 
-Requires: HUMAN_RESOURCES on every endpoint in this file, **except** `GET /employees/me/salary-summary`
-and `GET /employees/me/salary-advances`, which instead require the EMPLOYEE role plus a
-linked employee record on the caller's own account (see "Employee Self-Service" below).
+Requires: HUMAN_RESOURCES on every endpoint in this file, **except**:
+
+- `GET /employees/me/salary-summary` and `GET /employees/me/salary-advances`, which instead
+  require the EMPLOYEE role plus a linked employee record on the caller's own account (see
+  "Employee Self-Service" below).
+- `GET /employees/me/schedule`, same EMPLOYEE-role-plus-linked-record requirement (see
+  "Employee Self-Service" below).
+- The five Employee Weekly Schedule / Justified Absence / Attendance Verification endpoints
+  (see their sections below), which require HUMAN_RESOURCES **or** ADMIN — the only
+  endpoints in this file where ADMIN is also granted access alongside HR.
 
 ## Endpoints
 
@@ -31,6 +38,20 @@ PUT /employees/lateness-config
 GET /employees/me/salary-summary?month={int}&year={int}
 
 GET /employees/me/salary-advances?month={int}&year={int}
+
+GET /employees/schedule/{employee_id}
+
+PUT /employees/schedule/{employee_id}
+
+GET /employees/me/schedule
+
+POST /employees/justified-absences → 201, returns no body
+
+GET /employees/justified-absences?employee_id={uuid}&month={int}&year={int}
+
+DELETE /employees/justified-absences/{absence_id} → 204
+
+GET /employees/attendance-verification/{employee_id}?month={int}&year={int}
 
 All query params above are optional filters.
 
@@ -178,3 +199,123 @@ endpoint.
 Self-service equivalent of `GET /employees/salary-advances?employee_id=...`, scoped to the
 caller. Same response item shape as that endpoint (see "Salary Advance" above). `month`/`year`
 are optional filters; omitting both returns all of the caller's own advances.
+
+### GET /employees/me/schedule
+
+Self-service equivalent of `GET /employees/schedule/{employee_id}`, scoped to the caller (no
+`employee_id` param accepted — resolved server-side from the token). Same response shape and
+same 404-if-no-schedule behavior as the HR-facing endpoint (see "Employee Weekly Schedule"
+below).
+
+---
+
+## Employee Weekly Schedule
+
+Requires: HUMAN_RESOURCES **or** ADMIN (except the self-service `GET /employees/me/schedule`
+above, which requires EMPLOYEE + linked record).
+
+```text
+employee_id
+monday      # bool
+tuesday     # bool
+wednesday   # bool
+thursday    # bool
+friday      # bool
+saturday    # bool
+sunday      # bool
+```
+
+GET /employees/schedule/{employee_id}: returns the shape above.
+
+- No schedule has ever been set for that employee → `404 Not Found` (there is no
+  all-working/all-off default to fall back to — absence of a schedule is a distinct,
+  meaningful state).
+- `employee_id` doesn't reference an existing employee → `404 Not Found`.
+
+PUT /employees/schedule/{employee_id}: full replace — all 7 day flags are required on every
+call (no partial patch, consistent with `PUT /employees/lateness-config`). Creates the row if
+none exists yet, otherwise replaces the 7 flags on the existing row. Response: same shape as
+GET.
+
+- `employee_id` doesn't reference an existing employee → `404 Not Found`.
+
+---
+
+## Justified Absence
+
+Requires: HUMAN_RESOURCES **or** ADMIN.
+
+Create request (POST /employees/justified-absences):
+
+```text
+employee_id
+absence_date
+reason         # nullable
+```
+
+- `absence_date` must be one of the employee's scheduled work days per their current
+  Employee Weekly Schedule → otherwise `400 Bad Request`.
+- Employee has no Employee Weekly Schedule at all → `400 Bad Request` (no scheduled work
+  days exist to justify an absence against).
+- A justified absence already exists for this `employee_id` + `absence_date` →
+  `400 Bad Request`.
+- `employee_id` doesn't reference an existing employee → `404 Not Found`.
+- Returns `201` with no body — the created record is not echoed back. To see it, use
+  GET /employees/justified-absences.
+
+List item (GET /employees/justified-absences response):
+
+```text
+id
+employee_id
+absence_date
+reason        # nullable
+created_at
+```
+
+DELETE /employees/justified-absences/{absence_id} → `204 No Content`.
+
+- `absence_id` doesn't reference an existing justified absence → `404 Not Found`.
+
+---
+
+## Attendance Verification
+
+Requires: HUMAN_RESOURCES **or** ADMIN.
+
+GET /employees/attendance-verification/{employee_id} response:
+
+```text
+employee_id
+month
+year
+days: [
+  {
+    date
+    status                    # PRESENT | JUSTIFIED_ABSENCE | UNJUSTIFIED_ABSENCE
+  },
+  ...
+]
+unjustified_absence_count      # count of days where status == UNJUSTIFIED_ABSENCE
+```
+
+- `days` only includes dates that are scheduled work days per the employee's Employee
+  Weekly Schedule, within the requested month/year, and within the employee's active
+  employment period. Non-working days per the schedule never appear in `days`.
+- A justified absence takes priority over presence: a date with both a journey register
+  and a justified absence is reported as `JUSTIFIED_ABSENCE`, not `PRESENT`.
+- Employee has no Employee Weekly Schedule at all → `days: []`,
+  `unjustified_absence_count: 0` — not a `404`, since "no schedule" is a valid, reportable
+  state (nothing was expected, so nothing is missing).
+- Employee has no linked user account → `days: []`, `unjustified_absence_count: 0` —
+  presence can never be determined without a linked account, so this reports as "no data,"
+  not as every day being an unjustified absence.
+- Employee is currently inactive (`active: false`) → `days: []`,
+  `unjustified_absence_count: 0` for the **entire** requested period. There is no
+  deactivation timestamp on `Employee`, only the current flag, so this endpoint cannot
+  clip to the exact date an employee became inactive — the whole period is excluded once
+  inactive, which may under-report absences that occurred while still active in a period
+  that also includes the deactivation.
+- `employee_id` doesn't reference an existing employee → `404 Not Found`.
+- This endpoint performs no write and triggers no salary/payroll recalculation — it is
+  read-only.

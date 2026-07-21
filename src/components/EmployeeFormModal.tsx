@@ -3,8 +3,29 @@ import { Search, UserPlus, Link2 } from 'lucide-react';
 import { Employee, CreateEmployeeRequest, UpdateEmployeeRequest, User } from '../types';
 import { employeeService } from '../services/employeeService';
 import { userService } from '../services/userService';
+import { useEmployeeSchedule, WeeklyScheduleDays } from '../hooks/useEmployeeSchedule';
 
 type AccountLinkMode = 'none' | 'link-existing' | 'create-new';
+
+const EMPTY_SCHEDULE: WeeklyScheduleDays = {
+  monday: false,
+  tuesday: false,
+  wednesday: false,
+  thursday: false,
+  friday: false,
+  saturday: false,
+  sunday: false,
+};
+
+const WEEKDAYS: { key: keyof WeeklyScheduleDays; label: string }[] = [
+  { key: 'monday', label: 'Seg' },
+  { key: 'tuesday', label: 'Ter' },
+  { key: 'wednesday', label: 'Qua' },
+  { key: 'thursday', label: 'Qui' },
+  { key: 'friday', label: 'Sex' },
+  { key: 'saturday', label: 'Sáb' },
+  { key: 'sunday', label: 'Dom' },
+];
 
 interface EmployeeFormModalProps {
   employee: Employee | null;
@@ -31,6 +52,10 @@ export default function EmployeeFormModal({ employee, employees, onClose, onSave
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [usernameError, setUsernameError] = useState<string | null>(null);
+
+  const employeeSchedule = useEmployeeSchedule(employee?.id ?? null);
+  const [configureSchedule, setConfigureSchedule] = useState(false);
+  const [scheduleDays, setScheduleDays] = useState<WeeklyScheduleDays>(EMPTY_SCHEDULE);
 
   useEffect(() => {
     userService.getAll().then(setUsers).catch((e) => console.error('Failed to load users', e));
@@ -66,7 +91,29 @@ export default function EmployeeFormModal({ employee, employees, onClose, onSave
     setUserSearchQuery('');
     setError(null);
     setUsernameError(null);
+    setConfigureSchedule(false);
+    setScheduleDays(EMPTY_SCHEDULE);
+    employeeSchedule.load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [employee]);
+
+  // Reflects a freshly-loaded (or freshly-saved) schedule into the editable checkboxes —
+  // only fires when the schedule itself changes, never overwriting mid-edit user input.
+  useEffect(() => {
+    const schedule = employeeSchedule.schedule;
+    if (employeeSchedule.isConfigured && schedule) {
+      setScheduleDays({
+        monday: schedule.monday,
+        tuesday: schedule.tuesday,
+        wednesday: schedule.wednesday,
+        thursday: schedule.thursday,
+        friday: schedule.friday,
+        saturday: schedule.saturday,
+        sunday: schedule.sunday,
+      });
+      setConfigureSchedule(true);
+    }
+  }, [employeeSchedule.isConfigured, employeeSchedule.schedule]);
 
   // Eligible existing-user candidates: EMPLOYEE/OPERATOR role, active, not linked to a
   // different employee — but always keep the employee's own current link visible/selectable.
@@ -143,10 +190,21 @@ export default function EmployeeFormModal({ employee, employees, onClose, onSave
       if (employee) {
         const payload: UpdateEmployeeRequest = { ...basePayload, user_id: linkedUserId };
         await employeeService.update(employee.id, payload);
+        if (configureSchedule) {
+          const scheduleSaved = await employeeSchedule.save(scheduleDays);
+          if (!scheduleSaved) {
+            setError(employeeSchedule.error || 'Erro ao salvar escala de trabalho');
+            setLoading(false);
+            return;
+          }
+        }
       } else {
         const payload: CreateEmployeeRequest = { ...basePayload };
         if (linkedUserId !== undefined) payload.user_id = linkedUserId;
-        await employeeService.create(payload);
+        const created = await employeeService.create(payload);
+        if (configureSchedule) {
+          await employeeService.updateSchedule(created.id, scheduleDays);
+        }
       }
 
       onSaved();
@@ -323,6 +381,48 @@ export default function EmployeeFormModal({ employee, employees, onClose, onSave
                 {usernameError && <p className="text-xs text-red-600">{usernameError}</p>}
                 <p className="text-xs text-gray-400">A conta será criada com acesso de nível Funcionário.</p>
               </div>
+            )}
+          </div>
+
+          <div className="border-t border-gray-100 pt-4">
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-sm font-medium text-gray-700">Escala de trabalho</label>
+              {!configureSchedule && (
+                <button
+                  type="button"
+                  onClick={() => setConfigureSchedule(true)}
+                  className="text-xs font-medium text-blue-600 hover:text-blue-700"
+                >
+                  Configurar escala de trabalho
+                </button>
+              )}
+            </div>
+            {!configureSchedule ? (
+              <p className="text-xs text-gray-400">Nenhuma escala configurada para este funcionário.</p>
+            ) : (
+              <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
+                {WEEKDAYS.map(({ key, label }) => (
+                  <label
+                    key={key}
+                    className={`flex flex-col items-center gap-1 px-2 py-2 rounded-lg border text-xs cursor-pointer transition ${
+                      scheduleDays[key]
+                        ? 'bg-blue-50 border-blue-300 text-blue-700'
+                        : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={scheduleDays[key]}
+                      onChange={(e) => setScheduleDays({ ...scheduleDays, [key]: e.target.checked })}
+                      className="sr-only"
+                    />
+                    {label}
+                  </label>
+                ))}
+              </div>
+            )}
+            {employeeSchedule.error && (
+              <p className="text-xs text-red-600 mt-2">{employeeSchedule.error}</p>
             )}
           </div>
 
