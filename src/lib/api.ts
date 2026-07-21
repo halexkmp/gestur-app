@@ -1,5 +1,15 @@
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
+export class ApiError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+  }
+}
+
 async function request<T>(
   path: string,
   options: RequestInit & { params?: Record<string, any> } = {}
@@ -41,7 +51,7 @@ async function request<T>(
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ detail: 'An error occurred' }));
-    throw new Error(error.detail || 'An error occurred');
+    throw new ApiError(error.detail || 'An error occurred', response.status);
   }
 
   if (response.status === 204) {

@@ -1,5 +1,17 @@
-import { api } from '../lib/api';
-import { Employee, CreateEmployeeRequest, UpdateEmployeeRequest, SalaryAdvance, CreateSalaryAdvanceRequest, SalarySummaryResponse } from '../types';
+import { api, ApiError } from '../lib/api';
+import {
+  Employee,
+  CreateEmployeeRequest,
+  UpdateEmployeeRequest,
+  SalaryAdvance,
+  CreateSalaryAdvanceRequest,
+  SalarySummaryResponse,
+  EmployeeWeeklySchedule,
+  UpdateEmployeeWeeklyScheduleRequest,
+  JustifiedAbsence,
+  CreateJustifiedAbsenceRequest,
+  AttendanceVerificationResponse,
+} from '../types';
 
 export const employeeService = {
   // Employees CRUD
@@ -8,6 +20,30 @@ export const employeeService = {
   create: (payload: CreateEmployeeRequest) => api.post<Employee>('/employees/', payload),
   update: (id: string, payload: UpdateEmployeeRequest) => api.put<Employee>(`/employees/${id}`, payload),
   delete: (id: string) => api.delete(`/employees/${id}`),
+
+  // Employee Weekly Schedule
+  getSchedule: async (employee_id: string): Promise<EmployeeWeeklySchedule | null> => {
+    try {
+      return await api.get<EmployeeWeeklySchedule>(`/employees/schedule/${employee_id}`);
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 404) return null;
+      throw err;
+    }
+  },
+  updateSchedule: (employee_id: string, payload: UpdateEmployeeWeeklyScheduleRequest) =>
+    api.put<EmployeeWeeklySchedule>(`/employees/schedule/${employee_id}`, payload),
+
+  // Attendance Verification
+  getAttendanceVerification: (employee_id: string, params: { month: number; year: number }) =>
+    api.get<AttendanceVerificationResponse>(`/employees/attendance-verification/${employee_id}`, { params }),
+
+  // Justified Absence
+  listJustifiedAbsences: (params?: { employee_id?: string; month?: number; year?: number }) =>
+    api.get<JustifiedAbsence[]>('/employees/justified-absences', { params }),
+  createJustifiedAbsence: (payload: CreateJustifiedAbsenceRequest) =>
+    api.post<void>('/employees/justified-absences', payload),
+  deleteJustifiedAbsence: (id: string) =>
+    api.delete(`/employees/justified-absences/${id}`),
 
   // Salary Advances
   listSalaryAdvances: (params?: { employee_id?: string; month?: number; year?: number }) =>
