@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { employeeService } from '../services/employeeService';
-import {
-  Employee,
-  EmployeeScheduleRow,
-  CalendarDayCell,
-  EmployeeWeeklySchedule,
-  AttendanceVerificationResponse,
-} from '../types';
+import { Employee, EmployeeScheduleRow, CalendarDayCell, AttendanceDay } from '../types';
+
+interface AttendanceData {
+  days: AttendanceDay[];
+  unjustified_absence_count: number;
+}
 
 function daysInMonth(month: number, year: number): number {
   return new Date(year, month, 0).getDate();
@@ -37,10 +36,13 @@ function fillMonth(totalDays: number, year: number, month: number, cell: (date: 
   return cells;
 }
 
+// `attendance` is undefined when the employee has no Employee Weekly Schedule at all — the
+// bulk schedule-overview endpoint simply omits such employees from its `items` array, which is
+// itself the "no schedule" signal (no separate lookup needed to disambiguate this, unlike the
+// old per-employee-endpoint approach — see specs/005-hr-schedule-tab/research.md).
 function buildRow(
   employee: Employee,
-  schedule: EmployeeWeeklySchedule | null | undefined,
-  attendance: AttendanceVerificationResponse,
+  attendance: AttendanceData | undefined,
   month: number,
   year: number,
   today: string
@@ -53,7 +55,7 @@ function buildRow(
   if (!employee.active) {
     return {
       employee,
-      hasSchedule: schedule !== null,
+      hasSchedule: Boolean(attendance),
       days: fillMonth(totalDays, year, month, (date) => ({ date, state: 'NO_DATA', detail: 'Funcionário inativo' })),
       unjustifiedAbsenceCount: 0,
     };
@@ -62,7 +64,7 @@ function buildRow(
   if (!employee.user_id) {
     return {
       employee,
-      hasSchedule: schedule !== null,
+      hasSchedule: Boolean(attendance),
       days: fillMonth(totalDays, year, month, (date) => ({ date, state: 'NO_DATA', detail: 'Sem conta vinculada' })),
       unjustifiedAbsenceCount: 0,
     };
@@ -71,26 +73,17 @@ function buildRow(
   if (notYetHiredThisMonth) {
     return {
       employee,
-      hasSchedule: schedule !== null,
+      hasSchedule: Boolean(attendance),
       days: fillMonth(totalDays, year, month, (date) => ({ date, state: 'NOT_SCHEDULED', detail: 'Antes da contratação' })),
       unjustifiedAbsenceCount: 0,
     };
   }
 
-  if (attendance.days.length === 0) {
-    // Ambiguous case already resolved by the caller fetching `schedule` for us.
-    if (schedule === null) {
-      return {
-        employee,
-        hasSchedule: false,
-        days: fillMonth(totalDays, year, month, (date) => ({ date, state: 'NO_DATA', detail: 'Sem escala definida' })),
-        unjustifiedAbsenceCount: 0,
-      };
-    }
+  if (!attendance) {
     return {
       employee,
-      hasSchedule: true,
-      days: fillMonth(totalDays, year, month, (date) => ({ date, state: 'NOT_SCHEDULED', detail: 'Folga' })),
+      hasSchedule: false,
+      days: fillMonth(totalDays, year, month, (date) => ({ date, state: 'NO_DATA', detail: 'Sem escala definida' })),
       unjustifiedAbsenceCount: 0,
     };
   }
@@ -103,6 +96,9 @@ function buildRow(
     }
     const status = attendanceByDate.get(date);
     if (!status) {
+      // A schedule exists (we have `attendance`) but this date isn't in it — either a day off
+      // per the weekly pattern, or (if every day this month is like this) a schedule that's
+      // explicitly set to zero work days. Either way, "not scheduled" is the correct state.
       return { date, state: 'NOT_SCHEDULED', detail: 'Folga' };
     }
     if (status === 'PRESENT') return { date, state: 'WORKED' };
@@ -120,30 +116,11 @@ function buildRow(
     employee,
     hasSchedule: true,
     days,
-    // Recomputed from the resolved `days` rather than trusting `attendance.unjustified_absence_count`
-    // verbatim — the backend's count doesn't know about the today/future override above, so it
-    // would otherwise disagree with what's actually shown as an unjustified absence.
+    // Recomputed from the resolved `days` rather than trusting the backend's count verbatim —
+    // the backend doesn't know about the today/future override above, so it would otherwise
+    // disagree with what's actually shown as an unjustified absence.
     unjustifiedAbsenceCount: days.filter((d) => d.state === 'UNJUSTIFIED_ABSENCE').length,
   };
-}
-
-async function loadEmployeeRow(employee: Employee, month: number, year: number): Promise<EmployeeScheduleRow> {
-  const attendance = await employeeService.getAttendanceVerification(employee.id, { month, year });
-
-  const totalDays = daysInMonth(month, year);
-  const lastDayOfMonth = formatDate(year, month, totalDays);
-  const startDate = employee.start_date ? normalizeDate(employee.start_date) : null;
-  const notYetHiredThisMonth = Boolean(startDate && startDate > lastDayOfMonth);
-
-  const ambiguous =
-    employee.active &&
-    Boolean(employee.user_id) &&
-    !notYetHiredThisMonth &&
-    attendance.days.length === 0;
-
-  const schedule = ambiguous ? await employeeService.getSchedule(employee.id) : undefined;
-
-  return buildRow(employee, schedule, attendance, month, year, todayDateString());
 }
 
 export const useWorkSchedule = () => {
@@ -158,9 +135,17 @@ export const useWorkSchedule = () => {
     setLoading(true);
     setError(false);
     try {
-      const employees = await employeeService.getAll();
-      const newRows = await Promise.all(
-        employees.map((employee) => loadEmployeeRow(employee, month, year))
+      // Two requests total, regardless of headcount: the employee list, then one bulk call
+      // covering every employee's schedule + attendance for the month. Replaces what used to
+      // be up to 3 requests per employee (see specs/005-hr-schedule-tab/research.md).
+      const [employees, overview] = await Promise.all([
+        employeeService.getAll(),
+        employeeService.getScheduleOverview({ month, year }),
+      ]);
+      const attendanceByEmployeeId = new Map(overview.items.map((item) => [item.employee_id, item]));
+      const todayStr = todayDateString();
+      const newRows = employees.map((employee) =>
+        buildRow(employee, attendanceByEmployeeId.get(employee.id), month, year, todayStr)
       );
       setRows(newRows);
     } catch {
@@ -174,10 +159,16 @@ export const useWorkSchedule = () => {
     load();
   }, [load]);
 
+  // Refreshing a single row after a justify/remove mutation only needs that one employee's
+  // attendance (their schedule can't have changed from these actions), so this deliberately
+  // uses the single-employee endpoint rather than re-fetching the bulk overview for everyone.
   const refreshEmployeeRow = useCallback(async (employeeId: string) => {
     const row = rows.find((r) => r.employee.id === employeeId);
     if (!row) return;
-    const updatedRow = await loadEmployeeRow(row.employee, month, year);
+    const attendance = row.hasSchedule
+      ? await employeeService.getAttendanceVerification(employeeId, { month, year })
+      : undefined;
+    const updatedRow = buildRow(row.employee, attendance, month, year, todayDateString());
     setRows((current) => current.map((r) => (r.employee.id === employeeId ? updatedRow : r)));
   }, [rows, month, year]);
 

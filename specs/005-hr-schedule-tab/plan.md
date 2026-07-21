@@ -66,18 +66,16 @@ rather than breaking layout.
 **Project Type**: Single frontend web application (existing repo structure; backend is a
 separate, already-deployed service).
 
-**Performance Goals**: No documented backend rate limits, but a naive implementation (schedule +
-attendance-verification + justified-absences, all eager, per employee) would cost `1 + 3E`
-requests per month view (E = active employee count) — three times the `1 + E` precedent
-already accepted in `specs/003-hr-salary-tab/research.md`. This plan instead issues
-`1 + E (+ S)` requests: `GET /employees/?active=true` once, `GET /employees/attendance-verification/{id}`
-per employee always, and `GET /employees/schedule/{id}` only for the subset `S` of employees
-where an empty `days[]` is genuinely ambiguous (active, linked, but unclear whether "no
-schedule" or "schedule with zero work days") — `S` is typically small or zero, not `E`.
-`GET /employees/justified-absences` is never called eagerly; it's resolved on demand, one
-employee/month, only when HR opens the remove-justification action. See `research.md` for the
-full rationale and rejected alternatives (including a possible future backend enhancement if
-headcount ever outgrows this).
+**Performance Goals**: No documented backend rate limits. The bulk `GET /employees/schedule-overview`
+endpoint (added to `specs/api/employees.md` after this plan's initial per-employee-aggregation
+design) means the roster load now costs exactly **2 requests total, regardless of headcount** —
+`GET /employees/` plus one `GET /employees/schedule-overview?month&year` call — superseding the
+`1 + E (+ S)` design this plan originally called for (kept in `research.md` for history).
+`GET /employees/schedule/{id}` and `GET /employees/attendance-verification/{id}` are still used,
+but only for `useEmployeeSchedule` (the CRUD editor) and for refreshing a single row after a
+justify/remove action, respectively — never for the bulk load. `GET /employees/justified-absences`
+is still never called eagerly; it's resolved on demand, one employee/month, only when HR opens
+the remove-justification action. See `research.md` for the full rationale.
 
 **Constraints**: Must preserve the layered architecture (components/hooks/services/types).
 `src/lib/api.ts`'s `request<T>` must be extended to attach the HTTP status code to thrown
@@ -101,11 +99,12 @@ table, so the same colors mean the same thing everywhere in the app. Only action
 (unjustified absence → justify; justified absence → remove) show a pointer cursor and respond
 to clicks — every other cell is visually inert, so users never wonder what's clickable.
 
-**Scale/Scope**: One `lib/api.ts` extension, six new `employeeService.ts` methods, ten new
-type definitions, two new hooks, one new shared presentation helper (`scheduleCellVisual.ts`),
-four new components (`ScheduleTab`, `ScheduleGrid`, `ScheduleMonthCalendar`,
-`JustifyAbsenceModal`), one edited component (`EmployeeFormModal`), one edited component
-(`HR.tsx`, new tab wiring).
+**Scale/Scope**: One `lib/api.ts` extension, seven new `employeeService.ts` methods (including
+`getScheduleOverview`), twelve new type definitions (including `ScheduleOverviewItem`/
+`ScheduleOverviewResponse`), two new hooks, one new shared presentation helper
+(`scheduleCellVisual.ts`), four new components (`ScheduleTab`, `ScheduleGrid`,
+`ScheduleMonthCalendar`, `JustifyAbsenceModal`), one edited component (`EmployeeFormModal`),
+one edited component (`HR.tsx`, new tab wiring).
 
 ## Constitution Check
 
@@ -164,11 +163,12 @@ src/
 │   └── employee.ts                         # ADD: EmployeeWeeklySchedule, UpdateEmployeeWeeklyScheduleRequest,
 │                                            #      JustifiedAbsence, CreateJustifiedAbsenceRequest,
 │                                            #      AttendanceDayStatus, AttendanceDay, AttendanceVerificationResponse,
+│                                            #      ScheduleOverviewItem, ScheduleOverviewResponse,
 │                                            #      CalendarCellState, CalendarDayCell, EmployeeScheduleRow
 ├── services/
 │   └── employeeService.ts                  # ADD: getSchedule, updateSchedule, listJustifiedAbsences,
 │                                            #      createJustifiedAbsence, deleteJustifiedAbsence,
-│                                            #      getAttendanceVerification
+│                                            #      getAttendanceVerification, getScheduleOverview
 ├── hooks/
 │   ├── useEmployeeSchedule.ts              # NEW: single-employee schedule get/save — powers
 │                                            #      the EmployeeFormModal schedule editor (User Story 1)

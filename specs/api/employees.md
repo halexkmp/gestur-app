@@ -7,9 +7,9 @@ Requires: HUMAN_RESOURCES on every endpoint in this file, **except**:
   "Employee Self-Service" below).
 - `GET /employees/me/schedule`, same EMPLOYEE-role-plus-linked-record requirement (see
   "Employee Self-Service" below).
-- The five Employee Weekly Schedule / Justified Absence / Attendance Verification endpoints
-  (see their sections below), which require HUMAN_RESOURCES **or** ADMIN — the only
-  endpoints in this file where ADMIN is also granted access alongside HR.
+- The Employee Weekly Schedule / Justified Absence / Attendance Verification / Schedule
+  Overview endpoints (see their sections below), which require HUMAN_RESOURCES **or**
+  ADMIN — the only endpoints in this file where ADMIN is also granted access alongside HR.
 
 ## Endpoints
 
@@ -52,6 +52,8 @@ GET /employees/justified-absences?employee_id={uuid}&month={int}&year={int}
 DELETE /employees/justified-absences/{absence_id} → 204
 
 GET /employees/attendance-verification/{employee_id}?month={int}&year={int}
+
+GET /employees/schedule-overview?employee_ids={uuid}&month={int}&year={int}
 
 All query params above are optional filters.
 
@@ -319,3 +321,60 @@ unjustified_absence_count      # count of days where status == UNJUSTIFIED_ABSEN
 - `employee_id` doesn't reference an existing employee → `404 Not Found`.
 - This endpoint performs no write and triggers no salary/payroll recalculation — it is
   read-only.
+
+---
+
+## Employee Schedule Overview (Bulk)
+
+Requires: HUMAN_RESOURCES **or** ADMIN.
+
+Consolidates `GET /employees/schedule/{employee_id}` and
+`GET /employees/attendance-verification/{employee_id}?month&year` for many employees into a
+single call, so a caller building a schedule/attendance view for many employees does not need
+to issue two requests per employee.
+
+GET /employees/schedule-overview response:
+
+```text
+items: [
+  {
+    employee_id
+    monday                      # bool
+    tuesday                     # bool
+    wednesday                   # bool
+    thursday                    # bool
+    friday                      # bool
+    saturday                    # bool
+    sunday                      # bool
+    month                       # int — resolved (possibly defaulted) month
+    year                        # int — resolved (possibly defaulted) year
+    days: [
+      {
+        date
+        status                 # PRESENT | JUSTIFIED_ABSENCE | UNJUSTIFIED_ABSENCE
+      },
+      ...
+    ]
+    unjustified_absence_count   # count of days where status == UNJUSTIFIED_ABSENCE
+  },
+  ...
+]
+```
+
+- `employee_ids` (optional, repeatable query param): scopes the result to specific employees.
+  Omitted or empty → all employees are considered.
+- `month` / `year` (optional): default to the current month/year, same as
+  `GET /employees/attendance-verification/{employee_id}`.
+- One entry per considered employee that has an Employee Weekly Schedule. Employees with no
+  schedule are omitted entirely from `items` — there is no per-employee `404` here, since the
+  request spans many employees; an empty `items: []` is a valid response, not an error.
+- An `employee_ids` value that doesn't reference an existing employee, or references an
+  employee with no schedule, is silently skipped — it does not fail the request for the other
+  requested employees.
+- The `monday`..`sunday` flags and the `days`/`unjustified_absence_count` values for each
+  employee are identical to what the two single-employee endpoints above would return for
+  that employee and period, including all of their documented edge-case rules (no linked user
+  account, inactive employee, period clipped to `start_date`/today, justified-absence-takes-
+  priority-over-presence).
+- This endpoint does not replace `GET /employees/schedule/{employee_id}` or
+  `GET /employees/attendance-verification/{employee_id}` — both continue to work unchanged.

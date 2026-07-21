@@ -70,7 +70,10 @@ status    # AttendanceDayStatus
 
 ### `AttendanceVerificationResponse`
 
-Mirrors `GET /employees/attendance-verification/{employee_id}` (see "Attendance Verification").
+Mirrors `GET /employees/attendance-verification/{employee_id}`. Used only for the
+single-employee, single-row refresh after a justify/remove action (see
+`contracts/use-work-schedule-hook.md`) — the bulk roster load below uses `ScheduleOverviewItem`
+instead.
 
 ```text
 employee_id
@@ -82,13 +85,48 @@ days                          # AttendanceDay[] — only the employee's schedule
 unjustified_absence_count
 ```
 
+### `ScheduleOverviewItem` / `ScheduleOverviewResponse`
+
+Mirrors `GET /employees/schedule-overview` (see "Employee Schedule Overview (Bulk)"). Powers
+the roster's bulk load — one call returns every employee's schedule + attendance for a month
+instead of up to two per-employee calls each.
+
+```text
+ScheduleOverviewResponse:
+  items: ScheduleOverviewItem[]
+
+ScheduleOverviewItem:
+  employee_id
+  monday      # bool
+  tuesday     # bool
+  wednesday   # bool
+  thursday    # bool
+  friday      # bool
+  saturday    # bool
+  sunday      # bool
+  month
+  year
+  days                          # AttendanceDay[] — same semantics as AttendanceVerificationResponse.days
+  unjustified_absence_count
+```
+
+- An employee **absent** from `items` has no Employee Weekly Schedule at all — per the
+  contract, "Employees with no schedule are omitted entirely from `items`." This is the
+  authoritative "has a schedule" signal; no separate lookup is needed to disambiguate it from
+  an all-days-off schedule (which *does* appear in `items`, just with `days: []`).
+- The `monday`..`sunday` flags are part of the documented response shape but are not currently
+  read by `useWorkSchedule`'s derivation logic — presence/absence of a date in `days` already
+  fully determines each cell's state (see Derivation rules below), so the flags are modeled for
+  accuracy but unused for now.
+
 ## Client-side view-model types (new — never sent to or received from the backend)
 
 ### `CalendarCellState` (union type)
 
 The single rendering state each day cell resolves to, computed by `useWorkSchedule` (see
-`contracts/use-work-schedule-hook.md`) from the composition of `EmployeeWeeklySchedule | null`,
-`AttendanceVerificationResponse`, and the employee's own `active`/`user_id`/`start_date` fields.
+`contracts/use-work-schedule-hook.md`) from the composition of the matching
+`ScheduleOverviewItem` (or its absence), and the employee's own `active`/`user_id`/`start_date`
+fields.
 
 ```text
 'WORKED' | 'JUSTIFIED_ABSENCE' | 'UNJUSTIFIED_ABSENCE' | 'NOT_SCHEDULED' | 'NO_DATA'
@@ -124,11 +162,9 @@ unjustifiedAbsenceCount      # echoed from AttendanceVerificationResponse (0 if 
 
 ## Derivation rules (state machine for `CalendarCellState`)
 
-Resolved in two passes: an employee-level pass (decides whether any network call beyond
-attendance-verification is needed, and whether the whole month short-circuits), then a
-per-day pass. Steps 1-2 use only fields already present on the `Employee` fetched from
-`GET /employees/?active=true` — **no additional network call** is needed for them (see
-`research.md`'s fetch-scoping decision).
+Resolved in two passes: an employee-level pass (decides whether the whole month
+short-circuits), then a per-day pass. Steps 1-2 use only fields already present on the
+`Employee` fetched from `GET /employees/` — **no additional network call** is needed for them.
 
 **Employee-level pass**:
 
@@ -139,33 +175,31 @@ per-day pass. Steps 1-2 use only fields already present on the `Employee` fetche
 2. Employee has no linked user account (`Employee.user_id` is null/absent) → every day this
    month is `NO_DATA`, detail "Sem conta vinculada". No further checks needed.
 3. `Employee.start_date` falls after the last day of the requested month (not yet hired at all
-   this month) → every day this month is `NOT_SCHEDULED`, detail "Antes da contratação". No
-   schedule fetch is attempted — an empty `days[]` here means "not hired yet," not an
-   ambiguous schedule state, so it must be ruled out *before* the next step.
-4. Otherwise, the employee is active, linked, and at least partially employed during the
-   requested month: if `AttendanceVerificationResponse.days` is empty, this is the one
-   genuinely ambiguous case (could mean "no weekly schedule at all," or "a schedule exists but
-   is explicitly set to zero work days," per spec's final Edge Case) — only here does the hook
-   make the conditional `GET /employees/schedule/{id}` call to disambiguate: `null` (404) →
-   every day this month is `NO_DATA`, detail "Sem escala definida"; a loaded
-   `EmployeeWeeklySchedule` (necessarily all seven flags false, or `days[]` would not be empty)
-   → every day this month is `NOT_SCHEDULED`, detail "Folga" (a real, deliberate zero-work-days
-   schedule, not missing data). If `days[]` is non-empty, no schedule fetch happens at all.
+   this month) → every day this month is `NOT_SCHEDULED`, detail "Antes da contratação".
+4. Otherwise, look up the employee's id in the bulk `ScheduleOverviewResponse.items` (already
+   fetched alongside the employee list — see `contracts/use-work-schedule-hook.md`): absent →
+   every day this month is `NO_DATA`, detail "Sem escala definida" (no schedule at all — this
+   is now a direct lookup, not something inferred from an empty `days[]`, since the bulk
+   endpoint's own contract makes item-presence the "has a schedule" signal). Present with an
+   empty `days[]` → every day this month is `NOT_SCHEDULED`, detail "Folga" (a real, deliberate
+   zero-work-days schedule). Present with a non-empty `days[]` → proceed to the per-day pass.
 
-**Per-day pass** (only reached for an employee that didn't short-circuit above):
+**Per-day pass** (only reached for an employee whose matching item has a non-empty `days[]`):
 
 5. Day is before `Employee.start_date` → `NOT_SCHEDULED`, detail "Antes da contratação"
-   (mid-month hires: the attendance-verification endpoint never reports pre-employment days,
-   so this is inferred client-side from `start_date`, not from the API response).
-6. Date not found in `AttendanceVerificationResponse.days` (and not caught by step 5) →
-   `NOT_SCHEDULED`, detail "Folga" — inferred directly from the date's absence from `days`; no
-   schedule fetch is needed to know an ordinary day off is a day off, since the contract
-   guarantees every scheduled work day within active employment appears in `days`.
-7. Date found in `days` → `PRESENT` → `WORKED`; `JUSTIFIED_ABSENCE` → `JUSTIFIED_ABSENCE`;
-   `UNJUSTIFIED_ABSENCE` → `UNJUSTIFIED_ABSENCE`. No id is attached to a `JUSTIFIED_ABSENCE`
-   cell at this point — see `CalendarDayCell` above and `removeJustification` in
-   `contracts/use-work-schedule-hook.md` for the lazy id lookup used only when HR acts on the
-   cell.
+   (mid-month hires: the attendance data never reports pre-employment days, so this is
+   inferred client-side from `start_date`, not from the API response).
+6. Date not found in the item's `days` (and not caught by step 5) → `NOT_SCHEDULED`, detail
+   "Folga" — inferred directly from the date's absence from `days`; the contract guarantees
+   every scheduled work day within active employment appears there.
+7. Date found in `days`, status `PRESENT` → `WORKED`; `JUSTIFIED_ABSENCE` → `JUSTIFIED_ABSENCE`.
+8. Date found in `days`, status `UNJUSTIFIED_ABSENCE`, but the date is today or later → `NO_DATA`,
+   detail "Ainda não ocorreu" — a day that hasn't happened yet can't be a confirmed absence, it
+   simply has no data yet (see `research.md`'s "day hasn't occurred" fix).
+9. Date found in `days`, status `UNJUSTIFIED_ABSENCE`, and the date is strictly before today →
+   `UNJUSTIFIED_ABSENCE`. No id is attached to this cell — see `CalendarDayCell` above and
+   `removeJustification` in `contracts/use-work-schedule-hook.md` for the lazy id lookup used
+   only when HR acts on a `JUSTIFIED_ABSENCE` cell (steps 7).
 
 ## State ownership
 

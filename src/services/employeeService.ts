@@ -11,6 +11,7 @@ import {
   JustifiedAbsence,
   CreateJustifiedAbsenceRequest,
   AttendanceVerificationResponse,
+  ScheduleOverviewResponse,
 } from '../types';
 
 export const employeeService = {
@@ -36,6 +37,13 @@ export const employeeService = {
   // Attendance Verification
   getAttendanceVerification: (employee_id: string, params: { month: number; year: number }) =>
     api.get<AttendanceVerificationResponse>(`/employees/attendance-verification/${employee_id}`, { params }),
+
+  // Employee Schedule Overview (Bulk) — consolidates the two endpoints above for many
+  // employees into a single call. `employee_ids` is intentionally not exposed here since
+  // `api.ts`'s query-param serializer doesn't support repeated keys for arrays, and every
+  // current caller wants "all employees" anyway (the endpoint's own default when omitted).
+  getScheduleOverview: (params?: { month?: number; year?: number }) =>
+    api.get<ScheduleOverviewResponse>('/employees/schedule-overview', { params }),
 
   // Justified Absence
   listJustifiedAbsences: (params?: { employee_id?: string; month?: number; year?: number }) =>
