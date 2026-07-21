@@ -38,48 +38,64 @@ inactive must each render differently, not collapse into a generic error state).
 message-passthrough behavior and the new status-code behavior, since this file has no test
 coverage today and is now foundational to a user-visible state distinction.
 
-## Decision: Client-side aggregation for the "all employees" roster — attendance-verification
-always, schedule only when ambiguous, justified-absences only on demand (no bulk endpoint
-exists)
+## Decision: Use `GET /employees/schedule-overview` for the roster load; single-employee
+endpoints only for a per-row refresh (supersedes the original per-employee aggregation)
 
-**Decision**: `useWorkSchedule` fetches active employees (`GET /employees/?active=true`), then
-for every employee always issues `GET /employees/attendance-verification/{id}?month&year`, and
-issues `GET /employees/schedule/{id}` *only* for an employee that is active, has a linked
-`user_id`, and got back an empty `days[]` (the one case genuinely ambiguous between "no
-schedule at all" and "schedule exists but is explicitly set to zero work days," per spec's
-final Edge Case). `GET /employees/justified-absences` is not called during this load at all —
-see the next Decision below. All calls that do happen are still issued in parallel
-(`Promise.all` across employees and across each employee's calls).
+**Decision**: `useWorkSchedule`'s initial/month-change load now issues exactly two requests
+regardless of headcount: `GET /employees/?active=true` (well, `GET /employees/` — see the
+existing note elsewhere in this file about needing all employees, not just active ones) and
+one call to the new bulk `GET /employees/schedule-overview?month&year` (see
+`specs/api/employees.md`, "Employee Schedule Overview (Bulk)"), issued in parallel via
+`Promise.all`. The response's `items[]` is keyed by `employee_id`; an employee present in
+`items` has a schedule (its own `monday`..`sunday`, `days`, `unjustified_absence_count` are
+used exactly like the single-employee endpoints' equivalents), an employee **absent** from
+`items` has no schedule at all — the contract's own wording ("Employees with no schedule are
+omitted entirely from `items`") makes *presence in the array itself* the "has a schedule"
+signal, eliminating the need for a separate conditional fetch to disambiguate "no schedule" from
+"schedule with an empty `days[]`" (an all-days-off schedule still appears in `items`, just with
+`days: []`). `GET /employees/schedule/{id}` and `GET /employees/attendance-verification/{id}`
+still exist and are still used — but only for the single-employee, single-row refresh after a
+justify/remove action (see the next Decision) and for `useEmployeeSchedule` (the CRUD editor,
+User Story 1), never for the bulk roster load anymore.
 
-**Rationale**: `specs/api/employees.md` has no bulk/batch variant of any of these endpoints —
-all three are single-employee lookups, so an eager naive implementation would cost 3 requests
-per active employee (`1 + 3E`) on every tab open and every month change — three times the
-`1 + E` precedent already accepted in `specs/003-hr-salary-tab/research.md`, and enough to be
-worth avoiding rather than shipping and hoping it scales. Two of the three "no data" reasons —
-`inactive` and `no linked account` — are already fields (`Employee.active`, `Employee.user_id`)
-on the very `GET /employees/?active=true` response this hook fetches first; they cost nothing
-extra to check client-side, so the schedule call is only actually needed for the narrow
-remaining ambiguity (empty `days[]` for an otherwise-eligible employee). In practice this
-should be a small subset of a company's roster in any given month (typically new hires not yet
-configured), not every employee, so the fetch count is realistically closer to `1 + E` than to
-`1 + 2E`.
+**Rationale**: This is a straightforward replacement of a documented, already-accepted
+trade-off (see the superseded version of this decision, kept below for history) once the
+backend actually shipped the bulk endpoint it was deferred pending. Two requests total (down
+from `1 + E (+ rare S)`) is a strictly better outcome at any headcount, and it also removes an
+entire category of client-side logic (the "is this employee's empty `days[]` ambiguous"
+check and its conditional `getSchedule` call) since the bulk response's own shape already
+disambiguates it. `Employee.active`/`Employee.user_id` are still read directly off the
+already-fetched employee list for the inactive/no-linked-account cases — the bulk endpoint
+doesn't change that part, since those two "no data" reasons are properties of the employee
+record itself, not of their schedule.
 
 **Alternatives considered**:
-- *Always call both `getSchedule` and `getAttendanceVerification` for every employee*
-  (the original plan): rejected on cost grounds above — pays for disambiguation on every
-  employee every load, when the ambiguity in question only ever affects employees with an
-  empty `days[]`.
-- *Only call attendance-verification, infer "no schedule" from an empty `days[]` with no
-  further check*: rejected — collapses "no schedule at all" and "schedule exists, explicitly
-  zero work days" into one state, which spec's Edge Cases requires kept distinct.
-- *Request a new backend bulk endpoint first*: rejected for this feature — out of scope per the
-  spec's Assumptions, and unnecessary at the scale this app already assumes (tens of
-  employees). If headcount grows enough that `1 + E (+ rare S)` requests becomes a real
-  problem, the more surgical backend ask would be a `no_data_reason` field added to
-  `GET /employees/attendance-verification`'s response (distinguishing "no schedule" / "no
-  linked account" / "inactive" server-side) rather than a generic bulk endpoint — that would
-  eliminate the conditional `getSchedule` call entirely instead of just batching it. Noted here
-  as a documented future option, not something this feature implements or requires.
+- *Keep the per-employee aggregation now that a bulk endpoint exists*: rejected — no reason to
+  keep paying `N`+ requests once a single call returns the same data for everyone.
+- *Pass `employee_ids` explicitly to scope the bulk call*: rejected — `src/lib/api.ts`'s query
+  param serializer joins array values into one comma-separated string rather than emitting
+  repeated `employee_ids=` pairs (the contract's documented "repeatable query param" format),
+  and every caller here wants "all employees" anyway, which is the endpoint's own default when
+  the param is omitted — so omitting it entirely is both simpler and avoids depending on a
+  serialization format `api.ts` doesn't currently support.
+
+<details>
+<summary>Superseded: original per-employee aggregation decision (kept for history)</summary>
+
+**Original decision**: `useWorkSchedule` fetched active employees, then for every employee
+always issued `GET /employees/attendance-verification/{id}?month&year`, and issued
+`GET /employees/schedule/{id}` only for an employee that was active, had a linked `user_id`,
+and got back an empty `days[]` (the one case genuinely ambiguous between "no schedule at all"
+and "schedule exists but is explicitly set to zero work days"). `GET /employees/justified-absences`
+was not called during this load at all.
+
+**Original rationale**: At the time, `specs/api/employees.md` had no bulk/batch variant of any
+of these endpoints — a naive eager implementation would have cost `1 + 3E` requests; the
+conditional-fetch design cut that to `1 + E (+ rare S)`. This is now moot — the bulk endpoint
+documented above replaces it entirely, cutting the cost to a flat `2` requests regardless of
+`E`.
+
+</details>
 
 ## Decision: Resolve a justified absence's id lazily, only when HR opens the "remove" action
 

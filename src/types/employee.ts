@@ -123,6 +123,25 @@ export interface AttendanceVerificationResponse {
   unjustified_absence_count: number;
 }
 
+export interface ScheduleOverviewItem {
+  employee_id: string;
+  monday: boolean;
+  tuesday: boolean;
+  wednesday: boolean;
+  thursday: boolean;
+  friday: boolean;
+  saturday: boolean;
+  sunday: boolean;
+  month: number;
+  year: number;
+  days: AttendanceDay[];
+  unjustified_absence_count: number;
+}
+
+export interface ScheduleOverviewResponse {
+  items: ScheduleOverviewItem[];
+}
+
 // Client-side view model — never sent to or received from the backend. See
 // specs/005-hr-schedule-tab/data-model.md for the derivation rules that produce these.
 export type CalendarCellState =

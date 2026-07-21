@@ -2,7 +2,7 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 import { useWorkSchedule } from './useWorkSchedule';
 import { employeeService } from '../services/employeeService';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
-import { Employee, AttendanceVerificationResponse } from '../types';
+import { Employee, AttendanceVerificationResponse, ScheduleOverviewItem, ScheduleOverviewResponse } from '../types';
 
 vi.mock('../services/employeeService');
 
@@ -24,6 +24,28 @@ const activeLinkedEmployee: Employee = {
   user_id: 'u1',
 };
 
+function overviewItem(overrides: Partial<ScheduleOverviewItem> = {}): ScheduleOverviewItem {
+  return {
+    employee_id: 'e1',
+    monday: true,
+    tuesday: true,
+    wednesday: true,
+    thursday: true,
+    friday: true,
+    saturday: false,
+    sunday: false,
+    month,
+    year,
+    days: [],
+    unjustified_absence_count: 0,
+    ...overrides,
+  };
+}
+
+function overview(items: ScheduleOverviewItem[] = []): ScheduleOverviewResponse {
+  return { items };
+}
+
 function attendance(overrides: Partial<AttendanceVerificationResponse> = {}): AttendanceVerificationResponse {
   return {
     employee_id: 'e1',
@@ -40,65 +62,53 @@ describe('useWorkSchedule', () => {
     vi.clearAllMocks();
   });
 
-  it('marks inactive employees as NO_DATA for the whole month without fetching schedule', async () => {
+  it('marks inactive employees as NO_DATA for the whole month without any per-employee calls', async () => {
     vi.mocked(employeeService.getAll).mockResolvedValue([{ ...activeLinkedEmployee, active: false }]);
-    vi.mocked(employeeService.getAttendanceVerification).mockResolvedValue(attendance());
+    vi.mocked(employeeService.getScheduleOverview).mockResolvedValue(overview());
 
     const { result } = renderHook(() => useWorkSchedule());
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     expect(result.current.rows[0].days.every((d) => d.state === 'NO_DATA' && d.detail === 'Funcionário inativo')).toBe(true);
     expect(employeeService.getSchedule).not.toHaveBeenCalled();
+    expect(employeeService.getAttendanceVerification).not.toHaveBeenCalled();
   });
 
-  it('marks employees with no linked account as NO_DATA without fetching schedule', async () => {
+  it('marks employees with no linked account as NO_DATA without any per-employee calls', async () => {
     vi.mocked(employeeService.getAll).mockResolvedValue([{ ...activeLinkedEmployee, user_id: null }]);
-    vi.mocked(employeeService.getAttendanceVerification).mockResolvedValue(attendance());
+    vi.mocked(employeeService.getScheduleOverview).mockResolvedValue(overview());
 
     const { result } = renderHook(() => useWorkSchedule());
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     expect(result.current.rows[0].days.every((d) => d.state === 'NO_DATA' && d.detail === 'Sem conta vinculada')).toBe(true);
-    expect(employeeService.getSchedule).not.toHaveBeenCalled();
+    expect(employeeService.getAttendanceVerification).not.toHaveBeenCalled();
   });
 
-  it('treats a not-yet-hired employee as NOT_SCHEDULED without an ambiguous schedule fetch', async () => {
+  it('treats a not-yet-hired employee as NOT_SCHEDULED', async () => {
     vi.mocked(employeeService.getAll).mockResolvedValue([{ ...activeLinkedEmployee, start_date: `${year + 5}-01-01` }]);
-    vi.mocked(employeeService.getAttendanceVerification).mockResolvedValue(attendance());
+    vi.mocked(employeeService.getScheduleOverview).mockResolvedValue(overview());
 
     const { result } = renderHook(() => useWorkSchedule());
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     expect(result.current.rows[0].days.every((d) => d.state === 'NOT_SCHEDULED' && d.detail === 'Antes da contratação')).toBe(true);
-    expect(employeeService.getSchedule).not.toHaveBeenCalled();
   });
 
-  it('fetches the schedule only for the ambiguous empty-days case and resolves to NO_DATA when none exists', async () => {
+  it('resolves to NO_DATA/"Sem escala definida" when the employee is absent from the overview items', async () => {
     vi.mocked(employeeService.getAll).mockResolvedValue([activeLinkedEmployee]);
-    vi.mocked(employeeService.getAttendanceVerification).mockResolvedValue(attendance());
-    vi.mocked(employeeService.getSchedule).mockResolvedValue(null);
+    vi.mocked(employeeService.getScheduleOverview).mockResolvedValue(overview([]));
 
     const { result } = renderHook(() => useWorkSchedule());
     await waitFor(() => expect(result.current.loading).toBe(false));
 
-    expect(employeeService.getSchedule).toHaveBeenCalledWith('e1');
     expect(result.current.rows[0].hasSchedule).toBe(false);
     expect(result.current.rows[0].days.every((d) => d.state === 'NO_DATA' && d.detail === 'Sem escala definida')).toBe(true);
   });
 
-  it('resolves the ambiguous empty-days case to NOT_SCHEDULED/Folga when a real all-false schedule exists', async () => {
+  it('resolves to NOT_SCHEDULED/Folga for every day when the overview item has an empty days array', async () => {
     vi.mocked(employeeService.getAll).mockResolvedValue([activeLinkedEmployee]);
-    vi.mocked(employeeService.getAttendanceVerification).mockResolvedValue(attendance());
-    vi.mocked(employeeService.getSchedule).mockResolvedValue({
-      employee_id: 'e1',
-      monday: false,
-      tuesday: false,
-      wednesday: false,
-      thursday: false,
-      friday: false,
-      saturday: false,
-      sunday: false,
-    });
+    vi.mocked(employeeService.getScheduleOverview).mockResolvedValue(overview([overviewItem({ days: [] })]));
 
     const { result } = renderHook(() => useWorkSchedule());
     await waitFor(() => expect(result.current.loading).toBe(false));
@@ -107,24 +117,27 @@ describe('useWorkSchedule', () => {
     expect(result.current.rows[0].days.every((d) => d.state === 'NOT_SCHEDULED' && d.detail === 'Folga')).toBe(true);
   });
 
-  it('does not fetch schedule when attendance-verification already has non-empty days', async () => {
+  it('the initial load fetches only the employee list and the bulk overview, never per-employee endpoints', async () => {
     vi.mocked(employeeService.getAll).mockResolvedValue([activeLinkedEmployee]);
-    vi.mocked(employeeService.getAttendanceVerification).mockResolvedValue(
-      attendance({ days: [{ date: dateStr(1), status: 'PRESENT' }] })
+    vi.mocked(employeeService.getScheduleOverview).mockResolvedValue(
+      overview([overviewItem({ days: [{ date: dateStr(1), status: 'PRESENT' }] })])
     );
 
     const { result } = renderHook(() => useWorkSchedule());
     await waitFor(() => expect(result.current.loading).toBe(false));
 
+    expect(employeeService.getScheduleOverview).toHaveBeenCalledTimes(1);
+    expect(employeeService.getScheduleOverview).toHaveBeenCalledWith({ month, year });
     expect(employeeService.getSchedule).not.toHaveBeenCalled();
+    expect(employeeService.getAttendanceVerification).not.toHaveBeenCalled();
     expect(result.current.rows[0].days.find((d) => d.date === dateStr(1))?.state).toBe('WORKED');
   });
 
   it('treats today as NO_DATA rather than an unjustified absence when nothing has happened yet', async () => {
     const todayStr = dateStr(now.getDate());
     vi.mocked(employeeService.getAll).mockResolvedValue([activeLinkedEmployee]);
-    vi.mocked(employeeService.getAttendanceVerification).mockResolvedValue(
-      attendance({ days: [{ date: todayStr, status: 'UNJUSTIFIED_ABSENCE' }], unjustified_absence_count: 1 })
+    vi.mocked(employeeService.getScheduleOverview).mockResolvedValue(
+      overview([overviewItem({ days: [{ date: todayStr, status: 'UNJUSTIFIED_ABSENCE' }], unjustified_absence_count: 1 })])
     );
 
     const { result } = renderHook(() => useWorkSchedule());
@@ -140,15 +153,17 @@ describe('useWorkSchedule', () => {
 
   it('maps PRESENT/JUSTIFIED_ABSENCE/UNJUSTIFIED_ABSENCE and defaults other scheduled days to NOT_SCHEDULED/Folga', async () => {
     vi.mocked(employeeService.getAll).mockResolvedValue([activeLinkedEmployee]);
-    vi.mocked(employeeService.getAttendanceVerification).mockResolvedValue(
-      attendance({
-        days: [
-          { date: dateStr(1), status: 'PRESENT' },
-          { date: dateStr(2), status: 'JUSTIFIED_ABSENCE' },
-          { date: dateStr(3), status: 'UNJUSTIFIED_ABSENCE' },
-        ],
-        unjustified_absence_count: 1,
-      })
+    vi.mocked(employeeService.getScheduleOverview).mockResolvedValue(
+      overview([
+        overviewItem({
+          days: [
+            { date: dateStr(1), status: 'PRESENT' },
+            { date: dateStr(2), status: 'JUSTIFIED_ABSENCE' },
+            { date: dateStr(3), status: 'UNJUSTIFIED_ABSENCE' },
+          ],
+          unjustified_absence_count: 1,
+        }),
+      ])
     );
 
     const { result } = renderHook(() => useWorkSchedule());
@@ -162,11 +177,14 @@ describe('useWorkSchedule', () => {
     expect(result.current.rows[0].unjustifiedAbsenceCount).toBe(1);
   });
 
-  it('justifyAbsence creates the record then refreshes only that employee row', async () => {
+  it('justifyAbsence creates the record then refreshes only that employee row via the single-employee endpoint', async () => {
     vi.mocked(employeeService.getAll).mockResolvedValue([activeLinkedEmployee]);
-    vi.mocked(employeeService.getAttendanceVerification)
-      .mockResolvedValueOnce(attendance({ days: [{ date: dateStr(3), status: 'UNJUSTIFIED_ABSENCE' }], unjustified_absence_count: 1 }))
-      .mockResolvedValueOnce(attendance({ days: [{ date: dateStr(3), status: 'JUSTIFIED_ABSENCE' }], unjustified_absence_count: 0 }));
+    vi.mocked(employeeService.getScheduleOverview).mockResolvedValue(
+      overview([overviewItem({ days: [{ date: dateStr(3), status: 'UNJUSTIFIED_ABSENCE' }], unjustified_absence_count: 1 })])
+    );
+    vi.mocked(employeeService.getAttendanceVerification).mockResolvedValue(
+      attendance({ days: [{ date: dateStr(3), status: 'JUSTIFIED_ABSENCE' }], unjustified_absence_count: 0 })
+    );
     vi.mocked(employeeService.createJustifiedAbsence).mockResolvedValue(undefined);
 
     const { result } = renderHook(() => useWorkSchedule());
@@ -181,15 +199,21 @@ describe('useWorkSchedule', () => {
       absence_date: dateStr(3),
       reason: 'Atestado médico',
     });
-    expect(employeeService.getAttendanceVerification).toHaveBeenCalledTimes(2);
+    // Only the single-employee endpoint is used for the refresh — the bulk overview is not
+    // re-fetched just to update one row.
+    expect(employeeService.getAttendanceVerification).toHaveBeenCalledTimes(1);
+    expect(employeeService.getScheduleOverview).toHaveBeenCalledTimes(1);
     expect(result.current.rows[0].days.find((d) => d.date === dateStr(3))?.state).toBe('JUSTIFIED_ABSENCE');
   });
 
   it('removeJustification looks up the matching record, deletes it, then refreshes the row', async () => {
     vi.mocked(employeeService.getAll).mockResolvedValue([activeLinkedEmployee]);
-    vi.mocked(employeeService.getAttendanceVerification)
-      .mockResolvedValueOnce(attendance({ days: [{ date: dateStr(3), status: 'JUSTIFIED_ABSENCE' }], unjustified_absence_count: 0 }))
-      .mockResolvedValueOnce(attendance({ days: [{ date: dateStr(3), status: 'UNJUSTIFIED_ABSENCE' }], unjustified_absence_count: 1 }));
+    vi.mocked(employeeService.getScheduleOverview).mockResolvedValue(
+      overview([overviewItem({ days: [{ date: dateStr(3), status: 'JUSTIFIED_ABSENCE' }], unjustified_absence_count: 0 })])
+    );
+    vi.mocked(employeeService.getAttendanceVerification).mockResolvedValue(
+      attendance({ days: [{ date: dateStr(3), status: 'UNJUSTIFIED_ABSENCE' }], unjustified_absence_count: 1 })
+    );
     vi.mocked(employeeService.listJustifiedAbsences).mockResolvedValue([
       { id: 'ja1', employee_id: 'e1', absence_date: dateStr(3), reason: null, created_at: `${dateStr(1)}T00:00:00` },
     ]);
@@ -204,13 +228,14 @@ describe('useWorkSchedule', () => {
 
     expect(employeeService.listJustifiedAbsences).toHaveBeenCalledWith({ employee_id: 'e1', month, year });
     expect(employeeService.deleteJustifiedAbsence).toHaveBeenCalledWith('ja1');
+    expect(employeeService.getAttendanceVerification).toHaveBeenCalledTimes(1);
     expect(result.current.rows[0].days.find((d) => d.date === dateStr(3))?.state).toBe('UNJUSTIFIED_ABSENCE');
   });
 
   it('removeJustification throws when no matching record is found instead of silently doing nothing', async () => {
     vi.mocked(employeeService.getAll).mockResolvedValue([activeLinkedEmployee]);
-    vi.mocked(employeeService.getAttendanceVerification).mockResolvedValue(
-      attendance({ days: [{ date: dateStr(3), status: 'JUSTIFIED_ABSENCE' }] })
+    vi.mocked(employeeService.getScheduleOverview).mockResolvedValue(
+      overview([overviewItem({ days: [{ date: dateStr(3), status: 'JUSTIFIED_ABSENCE' }] })])
     );
     vi.mocked(employeeService.listJustifiedAbsences).mockResolvedValue([]);
 
@@ -223,6 +248,7 @@ describe('useWorkSchedule', () => {
 
   it('sets error and produces no rows when the employee list fetch fails', async () => {
     vi.mocked(employeeService.getAll).mockRejectedValue(new Error('network error'));
+    vi.mocked(employeeService.getScheduleOverview).mockResolvedValue(overview());
 
     const { result } = renderHook(() => useWorkSchedule());
     await waitFor(() => expect(result.current.loading).toBe(false));
