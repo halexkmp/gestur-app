@@ -6,6 +6,12 @@ interface ScheduleGridProps {
   onCellClick?: (row: EmployeeScheduleRow, date: string) => void;
 }
 
+const WEEKDAY_LABELS_BY_JS_DAY = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+
+function weekdayLabel(date: string): string {
+  return WEEKDAY_LABELS_BY_JS_DAY[new Date(`${date}T12:00:00`).getDay()];
+}
+
 export default function ScheduleGrid({ rows, onCellClick }: ScheduleGridProps) {
   return (
     <div className="bg-white rounded-lg shadow-md overflow-x-auto">
@@ -20,7 +26,10 @@ export default function ScheduleGrid({ rows, onCellClick }: ScheduleGridProps) {
                 key={cell.date}
                 className="border-b border-gray-200 px-1 py-2 text-center text-xs font-medium text-gray-500 whitespace-nowrap"
               >
-                {Number(cell.date.split('-')[2])}
+                <div className="flex flex-col items-center leading-tight">
+                  <span className="text-[10px] font-normal text-gray-400">{weekdayLabel(cell.date)}</span>
+                  <span>{Number(cell.date.split('-')[2])}</span>
+                </div>
               </th>
             ))}
           </tr>

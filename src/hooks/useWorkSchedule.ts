@@ -24,6 +24,11 @@ function normalizeDate(date: string): string {
   return date.split('T')[0];
 }
 
+function todayDateString(): string {
+  const now = new Date();
+  return formatDate(now.getFullYear(), now.getMonth() + 1, now.getDate());
+}
+
 function fillMonth(totalDays: number, year: number, month: number, cell: (date: string) => CalendarDayCell): CalendarDayCell[] {
   const cells: CalendarDayCell[] = [];
   for (let day = 1; day <= totalDays; day++) {
@@ -37,7 +42,8 @@ function buildRow(
   schedule: EmployeeWeeklySchedule | null | undefined,
   attendance: AttendanceVerificationResponse,
   month: number,
-  year: number
+  year: number,
+  today: string
 ): EmployeeScheduleRow {
   const totalDays = daysInMonth(month, year);
   const lastDayOfMonth = formatDate(year, month, totalDays);
@@ -101,6 +107,12 @@ function buildRow(
     }
     if (status === 'PRESENT') return { date, state: 'WORKED' };
     if (status === 'JUSTIFIED_ABSENCE') return { date, state: 'JUSTIFIED_ABSENCE' };
+    // A day that hasn't happened yet (today, before it's over, or any future date) can never
+    // be a confirmed absence — there simply isn't data for it yet, so it must not be flagged
+    // as something requiring justification.
+    if (date >= today) {
+      return { date, state: 'NO_DATA', detail: 'Ainda não ocorreu' };
+    }
     return { date, state: 'UNJUSTIFIED_ABSENCE' };
   });
 
@@ -108,7 +120,10 @@ function buildRow(
     employee,
     hasSchedule: true,
     days,
-    unjustifiedAbsenceCount: attendance.unjustified_absence_count,
+    // Recomputed from the resolved `days` rather than trusting `attendance.unjustified_absence_count`
+    // verbatim — the backend's count doesn't know about the today/future override above, so it
+    // would otherwise disagree with what's actually shown as an unjustified absence.
+    unjustifiedAbsenceCount: days.filter((d) => d.state === 'UNJUSTIFIED_ABSENCE').length,
   };
 }
 
@@ -128,7 +143,7 @@ async function loadEmployeeRow(employee: Employee, month: number, year: number):
 
   const schedule = ambiguous ? await employeeService.getSchedule(employee.id) : undefined;
 
-  return buildRow(employee, schedule, attendance, month, year);
+  return buildRow(employee, schedule, attendance, month, year, todayDateString());
 }
 
 export const useWorkSchedule = () => {

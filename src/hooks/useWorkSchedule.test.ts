@@ -120,6 +120,24 @@ describe('useWorkSchedule', () => {
     expect(result.current.rows[0].days.find((d) => d.date === dateStr(1))?.state).toBe('WORKED');
   });
 
+  it('treats today as NO_DATA rather than an unjustified absence when nothing has happened yet', async () => {
+    const todayStr = dateStr(now.getDate());
+    vi.mocked(employeeService.getAll).mockResolvedValue([activeLinkedEmployee]);
+    vi.mocked(employeeService.getAttendanceVerification).mockResolvedValue(
+      attendance({ days: [{ date: todayStr, status: 'UNJUSTIFIED_ABSENCE' }], unjustified_absence_count: 1 })
+    );
+
+    const { result } = renderHook(() => useWorkSchedule());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    const todayCell = result.current.rows[0].days.find((d) => d.date === todayStr);
+    expect(todayCell?.state).toBe('NO_DATA');
+    expect(todayCell?.detail).toBe('Ainda não ocorreu');
+    // The count is recomputed from the resolved days, not the raw backend field, so it must
+    // not count today's suppressed cell as an unjustified absence.
+    expect(result.current.rows[0].unjustifiedAbsenceCount).toBe(0);
+  });
+
   it('maps PRESENT/JUSTIFIED_ABSENCE/UNJUSTIFIED_ABSENCE and defaults other scheduled days to NOT_SCHEDULED/Folga', async () => {
     vi.mocked(employeeService.getAll).mockResolvedValue([activeLinkedEmployee]);
     vi.mocked(employeeService.getAttendanceVerification).mockResolvedValue(
