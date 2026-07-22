@@ -24,7 +24,7 @@ const CELL_VISUALS: Record<CalendarCellState, CellVisual> = {
     label: 'Falta não justificada',
   },
   NOT_SCHEDULED: {
-    className: 'bg-gray-50 text-gray-400 border-gray-200',
+    className: 'bg-yellow-50 text-yellow-700 border-yellow-200',
     icon: null,
     label: 'Folga',
   },
