@@ -1,4 +1,4 @@
-import { Check, FileText, AlertTriangle, type LucideIcon } from 'lucide-react';
+import { Check, FileText, AlertTriangle, CalendarOff, type LucideIcon } from 'lucide-react';
 import { CalendarCellState } from '../../types';
 
 export interface CellVisual {
@@ -25,7 +25,7 @@ const CELL_VISUALS: Record<CalendarCellState, CellVisual> = {
   },
   NOT_SCHEDULED: {
     className: 'bg-yellow-50 text-yellow-700 border-yellow-200',
-    icon: null,
+    icon: CalendarOff,
     label: 'Folga',
   },
   NO_DATA: {
