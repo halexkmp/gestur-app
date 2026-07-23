@@ -1,10 +1,32 @@
 import { useCallback, useEffect, useState } from 'react';
 import { employeeService } from '../services/employeeService';
-import { Employee, EmployeeScheduleRow, CalendarDayCell, AttendanceDay } from '../types';
+import {
+  Employee,
+  EmployeeScheduleRow,
+  CalendarDayCell,
+  AttendanceDay,
+  ScheduleOverviewItem,
+  WeeklySchedulePattern,
+} from '../types';
 
 interface AttendanceData {
   days: AttendanceDay[];
   unjustified_absence_count: number;
+  weeklyPattern: WeeklySchedulePattern;
+}
+
+const WEEKDAY_KEYS: (keyof WeeklySchedulePattern)[] = [
+  'sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday',
+];
+
+function toWeeklyPattern(item: ScheduleOverviewItem): WeeklySchedulePattern {
+  const { monday, tuesday, wednesday, thursday, friday, saturday, sunday } = item;
+  return { monday, tuesday, wednesday, thursday, friday, saturday, sunday };
+}
+
+function isScheduledDay(pattern: WeeklySchedulePattern, date: string): boolean {
+  const jsDay = new Date(`${date}T12:00:00`).getDay();
+  return pattern[WEEKDAY_KEYS[jsDay]];
 }
 
 function daysInMonth(month: number, year: number): number {
@@ -51,11 +73,13 @@ function buildRow(
   const lastDayOfMonth = formatDate(year, month, totalDays);
   const startDate = employee.start_date ? normalizeDate(employee.start_date) : null;
   const notYetHiredThisMonth = Boolean(startDate && startDate > lastDayOfMonth);
+  const weeklyPattern = attendance?.weeklyPattern ?? null;
 
   if (!employee.active) {
     return {
       employee,
       hasSchedule: Boolean(attendance),
+      weeklyPattern,
       days: fillMonth(totalDays, year, month, (date) => ({ date, state: 'NO_DATA', detail: 'Funcionário inativo' })),
       unjustifiedAbsenceCount: 0,
     };
@@ -65,6 +89,7 @@ function buildRow(
     return {
       employee,
       hasSchedule: Boolean(attendance),
+      weeklyPattern,
       days: fillMonth(totalDays, year, month, (date) => ({ date, state: 'NO_DATA', detail: 'Sem conta vinculada' })),
       unjustifiedAbsenceCount: 0,
     };
@@ -74,6 +99,7 @@ function buildRow(
     return {
       employee,
       hasSchedule: Boolean(attendance),
+      weeklyPattern,
       days: fillMonth(totalDays, year, month, (date) => ({ date, state: 'NOT_SCHEDULED', detail: 'Antes da contratação' })),
       unjustifiedAbsenceCount: 0,
     };
@@ -83,6 +109,7 @@ function buildRow(
     return {
       employee,
       hasSchedule: false,
+      weeklyPattern: null,
       days: fillMonth(totalDays, year, month, (date) => ({ date, state: 'NO_DATA', detail: 'Sem escala definida' })),
       unjustifiedAbsenceCount: 0,
     };
@@ -95,26 +122,32 @@ function buildRow(
       return { date, state: 'NOT_SCHEDULED', detail: 'Antes da contratação' };
     }
     const status = attendanceByDate.get(date);
-    if (!status) {
-      // A schedule exists (we have `attendance`) but this date isn't in it — either a day off
-      // per the weekly pattern, or (if every day this month is like this) a schedule that's
-      // explicitly set to zero work days. Either way, "not scheduled" is the correct state.
-      return { date, state: 'NOT_SCHEDULED', detail: 'Folga' };
-    }
+    // An explicit status from the backend always wins over the weekly pattern below — the
+    // contract guarantees a date only appears in `days` when it's a real scheduled work day.
     if (status === 'PRESENT') return { date, state: 'WORKED' };
     if (status === 'JUSTIFIED_ABSENCE') return { date, state: 'JUSTIFIED_ABSENCE' };
-    // A day that hasn't happened yet (today, before it's over, or any future date) can never
-    // be a confirmed absence — there simply isn't data for it yet, so it must not be flagged
-    // as something requiring justification.
-    if (date >= today) {
-      return { date, state: 'NO_DATA', detail: 'Ainda não ocorreu' };
+    if (status === 'UNJUSTIFIED_ABSENCE') {
+      // A day that hasn't happened yet (today, before it's over, or any future date) can never
+      // be a confirmed absence — there simply isn't data for it yet, so it must not be flagged
+      // as something requiring justification.
+      if (date >= today) {
+        return { date, state: 'NO_DATA', detail: 'Ainda não ocorreu' };
+      }
+      return { date, state: 'UNJUSTIFIED_ABSENCE' };
     }
-    return { date, state: 'UNJUSTIFIED_ABSENCE' };
+    // No status at all: the backend only reports a status for days that have already occurred,
+    // so a future work day is *also* absent from `days` here — the weekly pattern is what
+    // disambiguates a real day off (Folga) from a work day that simply hasn't happened yet.
+    if (!isScheduledDay(attendance.weeklyPattern, date)) {
+      return { date, state: 'NOT_SCHEDULED', detail: 'Folga' };
+    }
+    return { date, state: 'NO_DATA', detail: 'Ainda não ocorreu' };
   });
 
   return {
     employee,
     hasSchedule: true,
+    weeklyPattern,
     days,
     // Recomputed from the resolved `days` rather than trusting the backend's count verbatim —
     // the backend doesn't know about the today/future override above, so it would otherwise
@@ -142,7 +175,12 @@ export const useWorkSchedule = () => {
         employeeService.getAll(),
         employeeService.getScheduleOverview({ month, year }),
       ]);
-      const attendanceByEmployeeId = new Map(overview.items.map((item) => [item.employee_id, item]));
+      const attendanceByEmployeeId = new Map<string, AttendanceData>(
+        overview.items.map((item) => [
+          item.employee_id,
+          { days: item.days, unjustified_absence_count: item.unjustified_absence_count, weeklyPattern: toWeeklyPattern(item) },
+        ])
+      );
       const todayStr = todayDateString();
       const newRows = employees.map((employee) =>
         buildRow(employee, attendanceByEmployeeId.get(employee.id), month, year, todayStr)
@@ -165,8 +203,11 @@ export const useWorkSchedule = () => {
   const refreshEmployeeRow = useCallback(async (employeeId: string) => {
     const row = rows.find((r) => r.employee.id === employeeId);
     if (!row) return;
-    const attendance = row.hasSchedule
-      ? await employeeService.getAttendanceVerification(employeeId, { month, year })
+    const attendance: AttendanceData | undefined = row.weeklyPattern
+      ? {
+          ...(await employeeService.getAttendanceVerification(employeeId, { month, year })),
+          weeklyPattern: row.weeklyPattern,
+        }
       : undefined;
     const updatedRow = buildRow(row.employee, attendance, month, year, todayDateString());
     setRows((current) => current.map((r) => (r.employee.id === employeeId ? updatedRow : r)));

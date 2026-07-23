@@ -157,9 +157,12 @@ export interface CalendarDayCell {
   detail?: string; // human-readable reason shown in a tooltip
 }
 
+export type WeeklySchedulePattern = Omit<EmployeeWeeklySchedule, 'employee_id'>;
+
 export interface EmployeeScheduleRow {
   employee: Employee;
   hasSchedule: boolean;
+  weeklyPattern: WeeklySchedulePattern | null;
   days: CalendarDayCell[];
   unjustifiedAbsenceCount: number;
 }

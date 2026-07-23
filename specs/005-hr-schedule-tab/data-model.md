@@ -114,10 +114,13 @@ ScheduleOverviewItem:
   contract, "Employees with no schedule are omitted entirely from `items`." This is the
   authoritative "has a schedule" signal; no separate lookup is needed to disambiguate it from
   an all-days-off schedule (which *does* appear in `items`, just with `days: []`).
-- The `monday`..`sunday` flags are part of the documented response shape but are not currently
-  read by `useWorkSchedule`'s derivation logic — presence/absence of a date in `days` already
-  fully determines each cell's state (see Derivation rules below), so the flags are modeled for
-  accuracy but unused for now.
+- The `monday`..`sunday` flags are read by `useWorkSchedule`'s derivation logic to disambiguate
+  a date missing from `days`: it's a real day off (`NOT_SCHEDULED`/Folga) only if the flag for
+  that weekday is `false`; if the flag is `true`, the date is a work day that simply hasn't
+  happened yet (`NO_DATA`/"Ainda não ocorreu") — see step 6 under Derivation rules below. An
+  earlier version of this logic treated any date missing from `days` as Folga, which
+  misclassified future work days (always absent from `days` since they haven't occurred yet) as
+  days off.
 
 ## Client-side view-model types (new — never sent to or received from the backend)
 
@@ -156,6 +159,11 @@ employee                    # Employee (existing type, unchanged)
 hasSchedule                 # bool — false ⇒ every cell in `days` is NO_DATA regardless of
                              #   any attendance-verification data (no schedule ⇒ nothing to
                              #   compute against)
+weeklyPattern                # WeeklySchedulePattern | null — the matching item's monday..sunday
+                             #   flags (null when hasSchedule is false); carried on the row so a
+                             #   single-employee refresh (justify/remove) can redo the per-day
+                             #   pass without needing the flags from AttendanceVerificationResponse,
+                             #   which doesn't include them
 days                         # CalendarDayCell[] — one entry per day of the displayed month
 unjustifiedAbsenceCount      # echoed from AttendanceVerificationResponse (0 if hasSchedule is false)
 ```
@@ -180,26 +188,31 @@ short-circuits), then a per-day pass. Steps 1-2 use only fields already present 
    fetched alongside the employee list — see `contracts/use-work-schedule-hook.md`): absent →
    every day this month is `NO_DATA`, detail "Sem escala definida" (no schedule at all — this
    is now a direct lookup, not something inferred from an empty `days[]`, since the bulk
-   endpoint's own contract makes item-presence the "has a schedule" signal). Present with an
-   empty `days[]` → every day this month is `NOT_SCHEDULED`, detail "Folga" (a real, deliberate
-   zero-work-days schedule). Present with a non-empty `days[]` → proceed to the per-day pass.
+   endpoint's own contract makes item-presence the "has a schedule" signal). Present → proceed
+   to the per-day pass with the item's `monday`..`sunday` flags and `days[]` (an item with every
+   flag `false` is a real, deliberate zero-work-days schedule, and every day resolves to
+   `NOT_SCHEDULED`/Folga via step 6 below without needing special-casing).
 
-**Per-day pass** (only reached for an employee whose matching item has a non-empty `days[]`):
+**Per-day pass** (reached for any employee with a matching `ScheduleOverviewItem`):
 
 5. Day is before `Employee.start_date` → `NOT_SCHEDULED`, detail "Antes da contratação"
    (mid-month hires: the attendance data never reports pre-employment days, so this is
    inferred client-side from `start_date`, not from the API response).
-6. Date not found in the item's `days` (and not caught by step 5) → `NOT_SCHEDULED`, detail
-   "Folga" — inferred directly from the date's absence from `days`; the contract guarantees
-   every scheduled work day within active employment appears there.
-7. Date found in `days`, status `PRESENT` → `WORKED`; `JUSTIFIED_ABSENCE` → `JUSTIFIED_ABSENCE`.
-8. Date found in `days`, status `UNJUSTIFIED_ABSENCE`, but the date is today or later → `NO_DATA`,
+6. Date found in `days`, status `PRESENT` → `WORKED`; `JUSTIFIED_ABSENCE` → `JUSTIFIED_ABSENCE`.
+   An explicit status always wins over the weekly-pattern check below, since the contract
+   guarantees a date only appears in `days` when it's a real scheduled work day.
+7. Date found in `days`, status `UNJUSTIFIED_ABSENCE`, but the date is today or later → `NO_DATA`,
    detail "Ainda não ocorreu" — a day that hasn't happened yet can't be a confirmed absence, it
    simply has no data yet (see `research.md`'s "day hasn't occurred" fix).
-9. Date found in `days`, status `UNJUSTIFIED_ABSENCE`, and the date is strictly before today →
+8. Date found in `days`, status `UNJUSTIFIED_ABSENCE`, and the date is strictly before today →
    `UNJUSTIFIED_ABSENCE`. No id is attached to this cell — see `CalendarDayCell` above and
    `removeJustification` in `contracts/use-work-schedule-hook.md` for the lazy id lookup used
-   only when HR acts on a `JUSTIFIED_ABSENCE` cell (steps 7).
+   only when HR acts on a `JUSTIFIED_ABSENCE` cell (step 6).
+9. Date not found in `days` (and not caught by step 5): the weekly pattern decides which of the
+   two remaining states applies. The weekday's flag is `false` → `NOT_SCHEDULED`, detail "Folga"
+   (a real day off). The weekday's flag is `true` → `NO_DATA`, detail "Ainda não ocorreu" (a
+   scheduled work day that hasn't happened yet, so the backend hasn't reported a status for it —
+   this is the common case for every future work day in the month, not just today's).
 
 ## State ownership
 

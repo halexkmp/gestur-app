@@ -14,6 +14,8 @@ const year = now.getFullYear();
 const month = now.getMonth() + 1;
 const pad = (n: number) => String(n).padStart(2, '0');
 const dateStr = (day: number) => `${year}-${pad(month)}-${pad(day)}`;
+const WEEKDAY_KEYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const;
+const weekdayKeyFor = (day: number) => WEEKDAY_KEYS[new Date(year, month - 1, day).getDay()];
 
 const activeLinkedEmployee: Employee = {
   id: 'e1',
@@ -106,15 +108,47 @@ describe('useWorkSchedule', () => {
     expect(result.current.rows[0].days.every((d) => d.state === 'NO_DATA' && d.detail === 'Sem escala definida')).toBe(true);
   });
 
-  it('resolves to NOT_SCHEDULED/Folga for every day when the overview item has an empty days array', async () => {
+  it('resolves to NOT_SCHEDULED/Folga for every day when the schedule has zero work days', async () => {
     vi.mocked(employeeService.getAll).mockResolvedValue([activeLinkedEmployee]);
-    vi.mocked(employeeService.getScheduleOverview).mockResolvedValue(overview([overviewItem({ days: [] })]));
+    vi.mocked(employeeService.getScheduleOverview).mockResolvedValue(
+      overview([
+        overviewItem({
+          monday: false, tuesday: false, wednesday: false, thursday: false,
+          friday: false, saturday: false, sunday: false,
+          days: [],
+        }),
+      ])
+    );
 
     const { result } = renderHook(() => useWorkSchedule());
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     expect(result.current.rows[0].hasSchedule).toBe(true);
     expect(result.current.rows[0].days.every((d) => d.state === 'NOT_SCHEDULED' && d.detail === 'Folga')).toBe(true);
+  });
+
+  it('treats an unlisted work day as NO_DATA rather than Folga — it simply has not happened yet', async () => {
+    vi.mocked(employeeService.getAll).mockResolvedValue([activeLinkedEmployee]);
+    const totalDays = new Date(year, month, 0).getDate();
+    const lastDayOfMonth = dateStr(totalDays);
+    vi.mocked(employeeService.getScheduleOverview).mockResolvedValue(
+      overview([
+        overviewItem({
+          monday: true, tuesday: true, wednesday: true, thursday: true,
+          friday: true, saturday: true, sunday: true,
+          days: [],
+        }),
+      ])
+    );
+
+    const { result } = renderHook(() => useWorkSchedule());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    // Every weekday is a work day per the pattern, so the last day of the month (always today
+    // or later) being absent from `days` means it hasn't happened yet — not a day off.
+    const cell = result.current.rows[0].days.find((d) => d.date === lastDayOfMonth);
+    expect(cell?.state).toBe('NO_DATA');
+    expect(cell?.detail).toBe('Ainda não ocorreu');
   });
 
   it('the initial load fetches only the employee list and the bulk overview, never per-employee endpoints', async () => {
@@ -151,11 +185,14 @@ describe('useWorkSchedule', () => {
     expect(result.current.rows[0].unjustifiedAbsenceCount).toBe(0);
   });
 
-  it('maps PRESENT/JUSTIFIED_ABSENCE/UNJUSTIFIED_ABSENCE and defaults other scheduled days to NOT_SCHEDULED/Folga', async () => {
+  it('maps PRESENT/JUSTIFIED_ABSENCE/UNJUSTIFIED_ABSENCE and defaults an unlisted rest day to NOT_SCHEDULED/Folga', async () => {
     vi.mocked(employeeService.getAll).mockResolvedValue([activeLinkedEmployee]);
     vi.mocked(employeeService.getScheduleOverview).mockResolvedValue(
       overview([
         overviewItem({
+          monday: true, tuesday: true, wednesday: true, thursday: true,
+          friday: true, saturday: true, sunday: true,
+          [weekdayKeyFor(4)]: false,
           days: [
             { date: dateStr(1), status: 'PRESENT' },
             { date: dateStr(2), status: 'JUSTIFIED_ABSENCE' },
