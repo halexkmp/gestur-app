@@ -1,13 +1,13 @@
 import { ChevronDown, ChevronUp } from 'lucide-react';
-import { EmployeePaycheck, SalaryAdvance } from '../../types';
+import { EmployeePaycheck, SalarySummaryOverviewAdvance } from '../../types';
 import EmployeePaycheckDetail from './EmployeePaycheckDetail';
 
 interface EmployeePaycheckRowProps {
   paycheck: EmployeePaycheck;
   expanded: boolean;
   onToggle: () => void;
-  advances: SalaryAdvance[] | undefined;
-  onDeleteAdvance: (advance: SalaryAdvance) => void;
+  advances: SalarySummaryOverviewAdvance[] | undefined;
+  onDeleteAdvance: (advance: SalarySummaryOverviewAdvance) => void;
 }
 
 export default function EmployeePaycheckRow({

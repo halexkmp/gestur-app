@@ -1,12 +1,12 @@
 import { Clock3, Trash2 } from 'lucide-react';
-import { SalaryAdvance } from '../../types';
+import { SalarySummaryOverviewAdvance } from '../../types';
 
 interface EmployeePaycheckDetailProps {
-  advances: SalaryAdvance[] | undefined;
+  advances: SalarySummaryOverviewAdvance[] | undefined;
   lateDelayMinutes: number;
   lateDaysCount: number;
   lateDeductionTotal: number | string;
-  onDeleteAdvance: (advance: SalaryAdvance) => void;
+  onDeleteAdvance: (advance: SalarySummaryOverviewAdvance) => void;
 }
 
 export default function EmployeePaycheckDetail({

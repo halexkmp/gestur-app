@@ -23,7 +23,7 @@ PUT /employees/{employee_id}
 
 DELETE /employees/{employee_id} → 204
 
-GET /employees/salary-summary/{employee_id}?month={int}&year={int}
+GET /employees/salary-summary?month={int}&year={int}
 
 GET /employees/salary-advances?employee_id={uuid}&month={int}&year={int}
 
@@ -156,25 +156,53 @@ no deduction is applied and salary summaries report zero delay/deduction.
 
 ---
 
-## Salary Summary
+## Salary Summary (All Employees)
 
-GET /employees/salary-summary/{employee_id} response:
+GET /employees/salary-summary response:
 
 ```text
-employee_id
-month
-year
-gross_salary
-advances_total
-late_delay_minutes     # total minutes late across days beyond tolerance this month
-late_days_count        # count of days beyond tolerance this month
-late_deduction_total   # total lateness deduction this month
-net_salary              # gross_salary - advances_total - late_deduction_total
+items: [
+  {
+    employee_id
+    month
+    year
+    gross_salary
+    advances_total
+    advances: [
+      {
+        id
+        amount
+        advance_date
+        note          # nullable
+      },
+      ...
+    ]
+    late_delay_minutes     # total minutes late across days beyond tolerance this month
+    late_days_count        # count of days beyond tolerance this month
+    late_deduction_total   # total lateness deduction this month
+    net_salary              # gross_salary - advances_total - late_deduction_total
+  },
+  ...
+]
 ```
 
-`late_delay_minutes`, `late_days_count`, and `late_deduction_total` are `0`/`0.00` when the
-lateness configuration is disabled or has never been created; `net_salary` is then
-numerically identical to `gross_salary - advances_total`.
+- One entry per employee in the system, in a stable but unspecified order. Employees are
+  **not** filtered by `active` status — inactive employees are included.
+- `month`/`year` (optional query params): default to the current month/year.
+- No employees in the system → `items: []` (not an error).
+- `advances` is the itemized list of that employee's `SalaryAdvance` records with
+  `advance_date` in the requested month/year; `advances_total` always equals the sum of
+  `advances[].amount`. An employee with no advances that month/year has `advances: []` and
+  `advances_total: "0.00"`.
+- `late_delay_minutes`, `late_days_count`, and `late_deduction_total` are `0`/`0.00` when the
+  lateness configuration is disabled or has never been created, or when the employee has no
+  linked user account; `net_salary` is then numerically identical to
+  `gross_salary - advances_total`.
+- Requires HUMAN_RESOURCES (unchanged from before this endpoint became bulk — note this is
+  the one exception in this file where ADMIN is *not* also granted, unlike the schedule/
+  absence/attendance/overview endpoints below).
+- This previously took `{employee_id}` as a path parameter and returned a single object; that
+  form no longer exists — `employee_id` is not accepted on this endpoint at all.
 
 ---
 
@@ -190,9 +218,11 @@ both endpoints.
 
 ### GET /employees/me/salary-summary
 
-Self-service equivalent of `GET /employees/salary-summary/{employee_id}`, scoped to the
-caller. Same response shape as that endpoint (see "Salary Summary" above), including the
-lateness delay/deduction breakdown — an employee can see why their own pay was reduced.
+Self-service equivalent of `GET /employees/salary-summary`, scoped to the caller. Returns a
+single object with the same per-employee fields as one item of the bulk endpoint above
+(`employee_id`, `month`, `year`, `gross_salary`, `advances_total`, `late_delay_minutes`,
+`late_days_count`, `late_deduction_total`, `net_salary`) — not the `items` wrapper, and
+without the itemized `advances` array (that field is specific to the HR-facing bulk report).
 `month`/`year` are optional and default to the current month, same as the HR-facing
 endpoint.
 

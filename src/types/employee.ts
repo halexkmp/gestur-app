@@ -57,12 +57,40 @@ export interface SalarySummaryResponse {
   net_salary: number | string;
 }
 
+// Narrower than SalaryAdvance: the bulk salary-summary-overview endpoint embeds this shape
+// per employee, deliberately without employee_id (redundant under the parent item),
+// created_at, or times.
+export interface SalarySummaryOverviewAdvance {
+  id: string;
+  amount: number | string;
+  advance_date?: string | null;
+  note?: string | null;
+}
+
+export interface SalarySummaryOverviewItem {
+  employee_id: string;
+  month: number;
+  year: number;
+  gross_salary: number | string;
+  advances_total: number | string;
+  late_delay_minutes: number;
+  late_days_count: number;
+  late_deduction_total: number | string;
+  net_salary: number | string;
+  advances: SalarySummaryOverviewAdvance[];
+}
+
+export interface SalarySummaryOverviewResponse {
+  items: SalarySummaryOverviewItem[];
+}
+
 export interface EmployeePaycheck {
   employee_id: string;
   employee_name: string;
   base_salary: number | string;
-  // Everything below comes from the per-employee salary-summary endpoint and is only
-  // populated once the row has been expanded (see useEmployeePaychecks.loadSummaryForEmployee).
+  // Everything below comes from the bulk salary-summary-overview endpoint and is populated
+  // eagerly for every row as soon as the tab loads or the month/year filter changes (see
+  // useEmployeePaychecks.fetchPaychecks) — not lazily on row expand.
   month?: number;
   year?: number;
   gross_salary?: number | string;
@@ -71,6 +99,7 @@ export interface EmployeePaycheck {
   late_days_count?: number;
   late_deduction_total?: number | string;
   net_salary?: number | string;
+  advances?: SalarySummaryOverviewAdvance[];
 }
 
 export interface EmployeeWeeklySchedule {

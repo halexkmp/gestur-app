@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { AlertCircle, Plus, RefreshCw } from 'lucide-react';
-import { SalaryAdvance } from '../../types';
+import { SalarySummaryOverviewAdvance } from '../../types';
 import { useEmployeePaychecks } from '../../hooks/useEmployeePaychecks';
 import EmployeePaycheckRow from './EmployeePaycheckRow';
 import NewAdvanceForm from './NewAdvanceForm';
@@ -17,9 +17,6 @@ export default function SalaryTab() {
     loading,
     error,
     fetchPaychecks,
-    getAdvancesForEmployee,
-    loadAdvancesForEmployee,
-    loadSummaryForEmployee,
     createAdvance,
     deleteAdvance,
   } = useEmployeePaychecks();
@@ -27,19 +24,14 @@ export default function SalaryTab() {
   const [expandedEmployeeId, setExpandedEmployeeId] = useState<string | null>(null);
   const [showNewAdvanceForm, setShowNewAdvanceForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [employeeFilter, setEmployeeFilter] = useState('');
+
+  const visiblePaychecks = employeeFilter
+    ? paychecks.filter(p => p.employee_id === employeeFilter)
+    : paychecks;
 
   const toggleRow = (employeeId: string) => {
-    const next = expandedEmployeeId === employeeId ? null : employeeId;
-    setExpandedEmployeeId(next);
-    if (next && getAdvancesForEmployee(employeeId) === undefined) {
-      loadAdvancesForEmployee(employeeId);
-    }
-    if (next) {
-      const paycheck = paychecks.find(p => p.employee_id === employeeId);
-      if (paycheck && paycheck.gross_salary === undefined) {
-        loadSummaryForEmployee(employeeId);
-      }
-    }
+    setExpandedEmployeeId(prev => (prev === employeeId ? null : employeeId));
   };
 
   const handleCreateAdvance = async (payload: Parameters<typeof createAdvance>[0]) => {
@@ -55,10 +47,10 @@ export default function SalaryTab() {
     }
   };
 
-  const handleDeleteAdvance = async (advance: SalaryAdvance) => {
+  const handleDeleteAdvance = async (advance: SalarySummaryOverviewAdvance) => {
     if (!confirm(`Deseja excluir este adiantamento no valor de R$ ${Number(advance.amount).toFixed(2)}?`)) return;
     try {
-      await deleteAdvance(advance.id, advance.employee_id);
+      await deleteAdvance(advance.id);
     } catch (e) {
       console.error('Failed to delete salary advance', e);
       alert('Erro ao excluir adiantamento');
@@ -69,6 +61,19 @@ export default function SalaryTab() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex flex-wrap gap-3 items-end">
+          <div className="w-56">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Funcionário</label>
+            <select
+              value={employeeFilter}
+              onChange={(e) => setEmployeeFilter(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="">Todos</option>
+              {paychecks.map((p) => (
+                <option key={p.employee_id} value={p.employee_id}>{p.employee_name}</option>
+              ))}
+            </select>
+          </div>
           <div className="w-40">
             <label className="block text-sm font-medium text-gray-700 mb-1">Mês</label>
             <select
@@ -147,18 +152,20 @@ export default function SalaryTab() {
                     </div>
                   </td>
                 </tr>
-              ) : paychecks.length === 0 ? (
+              ) : visiblePaychecks.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-10 text-center text-gray-500">Nenhum funcionário ativo cadastrado</td>
+                  <td colSpan={6} className="px-4 py-10 text-center text-gray-500">
+                    {paychecks.length === 0 ? 'Nenhum funcionário ativo cadastrado' : 'Nenhum funcionário encontrado'}
+                  </td>
                 </tr>
               ) : (
-                paychecks.map(paycheck => (
+                visiblePaychecks.map(paycheck => (
                   <EmployeePaycheckRow
                     key={paycheck.employee_id}
                     paycheck={paycheck}
                     expanded={expandedEmployeeId === paycheck.employee_id}
                     onToggle={() => toggleRow(paycheck.employee_id)}
-                    advances={getAdvancesForEmployee(paycheck.employee_id)}
+                    advances={paycheck.advances}
                     onDeleteAdvance={handleDeleteAdvance}
                   />
                 ))
