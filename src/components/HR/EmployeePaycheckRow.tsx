@@ -8,6 +8,7 @@ interface EmployeePaycheckRowProps {
   onToggle: () => void;
   advances: SalarySummaryOverviewAdvance[] | undefined;
   onDeleteAdvance: (advance: SalarySummaryOverviewAdvance) => void;
+  onViewHistory: () => void;
 }
 
 export default function EmployeePaycheckRow({
@@ -16,6 +17,7 @@ export default function EmployeePaycheckRow({
   onToggle,
   advances,
   onDeleteAdvance,
+  onViewHistory,
 }: EmployeePaycheckRowProps) {
   const summaryLoaded = paycheck.gross_salary !== undefined;
 
@@ -55,6 +57,7 @@ export default function EmployeePaycheckRow({
                 lateDaysCount={paycheck.late_days_count ?? 0}
                 lateDeductionTotal={paycheck.late_deduction_total ?? 0}
                 onDeleteAdvance={onDeleteAdvance}
+                onViewHistory={onViewHistory}
               />
             ) : (
               <p className="text-sm text-gray-500 p-4">Carregando...</p>

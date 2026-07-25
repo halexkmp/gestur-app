@@ -59,6 +59,11 @@ export const employeeService = {
     api.post<SalaryAdvance>('/employees/salary-advances', payload),
   deleteSalaryAdvance: (id: string) =>
     api.delete(`/employees/salary-advances/${id}`),
+  // Complete advance history for one employee (month/year omitted — always the full history,
+  // never a period-scoped one; verified against the live backend that omitting both returns
+  // every advance ever recorded, not just the current month).
+  listSalaryAdvances: (employee_id: string) =>
+    api.get<SalaryAdvance[]>('/employees/salary-advances', { params: { employee_id } }),
 
   // Salary Summary (All Employees) — consolidates the per-employee summary and advances
   // lookups into a single call for every employee in the system for a given month/year (the

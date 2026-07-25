@@ -7,6 +7,7 @@ interface EmployeePaycheckDetailProps {
   lateDaysCount: number;
   lateDeductionTotal: number | string;
   onDeleteAdvance: (advance: SalarySummaryOverviewAdvance) => void;
+  onViewHistory: () => void;
 }
 
 export default function EmployeePaycheckDetail({
@@ -15,6 +16,7 @@ export default function EmployeePaycheckDetail({
   lateDaysCount,
   lateDeductionTotal,
   onDeleteAdvance,
+  onViewHistory,
 }: EmployeePaycheckDetailProps) {
   const hasLateness = lateDaysCount > 0 || lateDelayMinutes > 0 || Number(lateDeductionTotal) > 0;
 
@@ -48,6 +50,12 @@ export default function EmployeePaycheckDetail({
             ))}
           </ul>
         )}
+        <button
+          onClick={onViewHistory}
+          className="mt-2 text-sm text-blue-600 hover:underline"
+        >
+          Ver histórico completo
+        </button>
       </div>
 
       <div>

@@ -3,6 +3,7 @@ import { AlertCircle, Plus, RefreshCw } from 'lucide-react';
 import { SalarySummaryOverviewAdvance } from '../../types';
 import { useEmployeePaychecks } from '../../hooks/useEmployeePaychecks';
 import EmployeePaycheckRow from './EmployeePaycheckRow';
+import EmployeeAdvanceHistoryModal from './EmployeeAdvanceHistoryModal';
 import NewAdvanceForm from './NewAdvanceForm';
 
 const monthOptions = Array.from({ length: 12 }, (_, i) => i + 1);
@@ -25,6 +26,7 @@ export default function SalaryTab() {
   const [showNewAdvanceForm, setShowNewAdvanceForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [employeeFilter, setEmployeeFilter] = useState('');
+  const [historyEmployee, setHistoryEmployee] = useState<{ id: string; name: string } | null>(null);
 
   const visiblePaychecks = employeeFilter
     ? paychecks.filter(p => p.employee_id === employeeFilter)
@@ -106,7 +108,7 @@ export default function SalaryTab() {
           className="w-full sm:w-auto bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition flex items-center justify-center gap-2"
         >
           <Plus className="w-5 h-5" />
-          Novo Adiantamento
+          Adiantamento Salarial
         </button>
       </div>
 
@@ -167,6 +169,7 @@ export default function SalaryTab() {
                     onToggle={() => toggleRow(paycheck.employee_id)}
                     advances={paycheck.advances}
                     onDeleteAdvance={handleDeleteAdvance}
+                    onViewHistory={() => setHistoryEmployee({ id: paycheck.employee_id, name: paycheck.employee_name })}
                   />
                 ))
               )}
@@ -174,6 +177,14 @@ export default function SalaryTab() {
           </table>
         </div>
       </div>
+
+      {historyEmployee && (
+        <EmployeeAdvanceHistoryModal
+          employeeId={historyEmployee.id}
+          employeeName={historyEmployee.name}
+          onClose={() => setHistoryEmployee(null)}
+        />
+      )}
     </div>
   );
 }
