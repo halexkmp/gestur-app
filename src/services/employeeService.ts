@@ -6,6 +6,7 @@ import {
   SalaryAdvance,
   CreateSalaryAdvanceRequest,
   SalarySummaryResponse,
+  SalarySummaryOverviewResponse,
   EmployeeWeeklySchedule,
   UpdateEmployeeWeeklyScheduleRequest,
   JustifiedAbsence,
@@ -54,16 +55,23 @@ export const employeeService = {
     api.delete(`/employees/justified-absences/${id}`),
 
   // Salary Advances
-  listSalaryAdvances: (params?: { employee_id?: string; month?: number; year?: number }) =>
-    api.get<SalaryAdvance[]>('/employees/salary-advances', { params }),
   createSalaryAdvance: (payload: CreateSalaryAdvanceRequest) =>
     api.post<SalaryAdvance>('/employees/salary-advances', payload),
   deleteSalaryAdvance: (id: string) =>
     api.delete(`/employees/salary-advances/${id}`),
+  // Complete advance history for one employee (month/year omitted — always the full history,
+  // never a period-scoped one; verified against the live backend that omitting both returns
+  // every advance ever recorded, not just the current month).
+  listSalaryAdvances: (employee_id: string) =>
+    api.get<SalaryAdvance[]>('/employees/salary-advances', { params: { employee_id } }),
 
-  // Salary Summary report (per employee)
-  getSalarySummary: (employee_id: string, params?: { month?: number; year?: number }) =>
-    api.get<SalarySummaryResponse>(`/employees/salary-summary/${employee_id}`, { params }),
+  // Salary Summary (All Employees) — consolidates the per-employee summary and advances
+  // lookups into a single call for every employee in the system for a given month/year (the
+  // caller is responsible for filtering to active employees). Path is /employees/salary-summary
+  // with no path param — the old single-employee {employee_id} form was removed by the
+  // backend, not kept alongside this one.
+  getSalarySummaryOverview: (params?: { month?: number; year?: number }) =>
+    api.get<SalarySummaryOverviewResponse>('/employees/salary-summary', { params }),
 
   // Self-service (current authenticated employee's own data).
   // Depends on a backend contract addition not yet implemented — see
