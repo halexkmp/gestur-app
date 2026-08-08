@@ -5,7 +5,9 @@ import {
   CreateLoanRequest,
   UpdateLoanRequest,
   LoanInstallmentPayment,
-  LoanSummary
+  LoanSummary,
+  LoanPeriodSummary,
+  LoanPeriodSummaryParams
 } from '../types';
 
 export const loanService = {
@@ -37,6 +39,10 @@ export const loanService = {
 
   getSummary(id: string): Promise<LoanSummary> {
     return api.get(`/loans/${id}/summary`);
+  },
+
+  getPeriodSummary: (params: LoanPeriodSummaryParams): Promise<LoanPeriodSummary> => {
+    return api.get<LoanPeriodSummary>('/loans/period-summary', { params });
   },
 
   createInstallmentPayment: (

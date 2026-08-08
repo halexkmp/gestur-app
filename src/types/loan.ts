@@ -97,3 +97,44 @@ export interface LoanSummaryPayment {
   amount: string;
   payment_date: string;
 }
+
+/**
+ * Aggregate view of the loan book over a date range, from
+ * GET /loans/period-summary. Every monetary field is a decimal string with two
+ * decimals ("0.00", never "0") — see specs/api/loans.md.
+ */
+export interface LoanPeriodSummary {
+  start_date: string;
+  end_date: string;
+  expected_revenue: string;
+  expected_capital: string;
+  expected_profit: string;
+  received_amount: string;
+  outstanding_amount: string;
+  installments_count: number;
+  partners_count: number;
+  partners: LoanPeriodSummaryPartner[];
+}
+
+/** One partner's share of a period summary, combined across all their loans. */
+export interface LoanPeriodSummaryPartner {
+  partner_id: string;
+  partner_name: string;
+  scheduled_amount: string;
+  received_amount: string;
+  outstanding_amount: string;
+  installments_count: number;
+}
+
+export interface LoanPeriodSummaryParams {
+  start_date: string;
+  end_date: string;
+}
+
+export type PeriodPresetId =
+  | 'current-month'
+  | 'previous-month'
+  | 'current-quarter'
+  | 'current-year'
+  | 'next-30-days'
+  | 'custom';
