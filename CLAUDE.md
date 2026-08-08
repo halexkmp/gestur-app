@@ -19,7 +19,7 @@ npm run test           # vitest
 
 Run a single test file: `npx vitest run src/hooks/useLoans.test.ts`
 
-**Known issue:** `vite.config.ts` points `test.setupFiles` at `./src/test/setup.ts`, which does not exist, so `npm run test` currently fails for every suite with `Cannot find module '.../src/test/setup.ts'`. Create that file (e.g. with `@testing-library/jest-dom` import) before relying on the existing `useLoans.test.ts` / `useJourney.test.ts` specs.
+**Known issue:** one suite, `src/hooks/useEmployeePaychecks.test.ts`, fails on an argument-matching assertion. It is a pre-existing failure unrelated to any current work — treat `1 failed` as the baseline and only investigate additional failures.
 
 ## Architecture
 
