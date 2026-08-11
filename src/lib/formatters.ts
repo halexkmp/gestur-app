@@ -32,6 +32,32 @@ export const formatDateBR = (date: string): string =>
   new Date(`${date.split('T')[0]}T12:00:00`).toLocaleDateString('pt-BR');
 
 /**
+ * Whole days a "YYYY-MM-DD" due date is in the past; 0 when due today or later.
+ *
+ * Both dates are anchored at local noon before diffing — the same technique
+ * `formatDateBR` uses above. A midnight anchor sits close enough to the day
+ * boundary that a DST shift, or simply a late-evening "now", can push the
+ * difference across a whole day; noon leaves 12 hours of slack either side, so
+ * `Math.round` recovers the exact whole-day count.
+ *
+ * Never returns a negative value: an installment due today or in the future is
+ * not overdue at all, which callers render as "not overdue" rather than
+ * "overdue by -3 days".
+ */
+export const daysOverdue = (dueDate: string): number => {
+  const due = new Date(`${dueDate.split('T')[0]}T12:00:00`);
+  if (Number.isNaN(due.getTime())) return 0;
+
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12, 0, 0, 0);
+
+  const elapsedMs = today.getTime() - due.getTime();
+  if (elapsedMs <= 0) return 0;
+
+  return Math.round(elapsedMs / 86_400_000);
+};
+
+/**
  * Resolves a preset to an inclusive [startDate, endDate] pair of local
  * "YYYY-MM-DD" dates. `custom` returns today for both — callers keep their own
  * dates in that case.

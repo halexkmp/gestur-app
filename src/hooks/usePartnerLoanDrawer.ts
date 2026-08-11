@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { partnerService } from '../services/partnerService';
-import { LoanPeriodSummaryPartner, Partner, PartnerType } from '../types';
+import { Partner, PartnerType } from '../types';
 
 /**
- * Turns a period-summary row into the full `Partner` that LoanDrawer requires.
+ * Turns any row carrying a `partner_id` into the full `Partner` that LoanDrawer
+ * requires — period-summary rows and owed-installment rows alike.
  *
  * The buggyman list is loaded once and matched by id; a partner missing from it
  * falls back to GET /partners/{id}. A partial `Partner` is never constructed —
@@ -32,7 +33,7 @@ export const usePartnerLoanDrawer = () => {
     };
   }, []);
 
-  const openFor = useCallback(async (row: LoanPeriodSummaryPartner) => {
+  const openFor = useCallback(async (row: { partner_id: string }) => {
     const known = partnersRef.current.find((p) => p.id === row.partner_id);
     if (known) {
       setDrawerPartner(known);

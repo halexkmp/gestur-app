@@ -10,6 +10,10 @@ GET /loans/?partner_id={uuid}   # partner_id is REQUIRED
 
 GET /loans/period-summary?start_date={date}&end_date={date}   # both REQUIRED
 
+GET /loans/upcoming-installments?start_date={date}&end_date={date}
+                                # dates REQUIRED; optional include_overdue,
+                                # partner_id, limit
+
 GET /loans/{loan_id}
 
 GET /loans/{loan_id}/summary
@@ -209,6 +213,87 @@ missing or malformed; `401` without a valid token.
 > `total_amount` by a few cents. The installments are authoritative for what a partner
 > owes on a date — do not expect a full-loan `total_amount` to reconcile exactly against
 > a sum of period summaries.
+
+---
+
+# Upcoming Installments
+
+`GET /loans/upcoming-installments` — row-level view of what the loan book still has to
+collect in a date range, across all partners. The companion to the period summary above,
+which answers the same question as totals.
+
+Query parameters:
+
+```text
+start_date        # REQUIRED, YYYY-MM-DD, inclusive lower bound on due date
+end_date          # REQUIRED, YYYY-MM-DD, inclusive upper bound; must be >= start_date
+include_overdue   # optional bool, default false. When true, ALSO returns every unsettled
+                  # installment due before start_date — no lower cutoff, the whole history
+partner_id        # optional UUID, restrict to one partner
+limit             # optional int >= 1, max rows returned, applied AFTER ordering
+```
+
+Response is a **flat JSON array** — no envelope. Empty array when nothing matches.
+
+```text
+[
+  {
+    installment_id
+    loan_id
+    partner_id
+    partner_name
+    installment_number
+    due_date
+    amount              # scheduled for this installment
+    paid_amount         # already received against it, capped at amount
+    remaining_amount    # amount - paid_amount
+    status              # PENDING | PARTIALLY_PAID — never PAID
+    is_overdue          # due_date < today
+  }
+]
+```
+
+Selection rule: the loan is not `CANCELED`, the installment's own status is not `PAID`,
+`due_date <= end_date`, and either `due_date >= start_date` or `include_overdue=true`.
+Fully settled installments are excluded — this lists what is still owed, not payment
+history. Inactive partners are included. `start_date` stays required even when
+`include_overdue` makes it a non-bound.
+
+Ordering: `due_date` ascending, then `loan_id`, then `installment_number`. Deterministic,
+which is what makes `limit` meaningful — the same request always returns the same rows.
+
+Guarantees:
+
+- per row: `paid_amount + remaining_amount == amount`
+- `remaining_amount >= 0.00`, and `> 0.00` for any data created through the API
+- `status` is never `PAID`
+- no negative amounts — payments beyond an installment's amount are capped
+- every money field carries two decimals, including zeros (`"0.00"`, never `"0"`)
+- `due_date` is non-decreasing down the list; each installment appears at most once
+- with `include_overdue=false`: `start_date <= due_date <= end_date` on every row
+- with `include_overdue=true`: every row with `due_date < start_date` has `is_overdue: true`
+
+`is_overdue` is evaluated against the server's current date at request time, independent of
+the window — so with `include_overdue=false` and a window starting in the past, in-window
+rows can legitimately come back `is_overdue: true`. An installment due **today** is not
+overdue.
+
+Errors: `400` when `end_date` is earlier than `start_date`; `401` without a valid token;
+`422` when either date is missing or malformed, `limit` is less than 1, or `partner_id` is
+not a valid UUID. Authentication resolves before parameter validation, so a request with no
+token and a malformed parameter returns `401`, not `422`. A `partner_id` matching no partner
+is not an error — it returns `[]`, as does a window with nothing due.
+
+> **Reconciliation with the period summary**: for the same window with
+> `include_overdue=false`, the sum of `remaining_amount` across these rows equals the
+> summary's `outstanding_amount` — with one exception. There are two ways to settle an
+> installment and they record different things. `POST /loan-installments/{id}/payments`
+> writes a payment row and updates status. `PATCH /loan-installments/{id}/pay` sets status
+> to `PAID` **without** writing a payment row. This endpoint trusts status, so it drops such
+> an installment; the period summary derives `received_amount` from payment rows only, so it
+> still counts that installment's full amount as outstanding. The two differ by exactly
+> those amounts. This is a pre-existing disagreement between the two write paths, not a
+> defect in either read endpoint.
 
 ---
 
