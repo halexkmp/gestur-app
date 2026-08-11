@@ -7,7 +7,9 @@ import {
   LoanInstallmentPayment,
   LoanSummary,
   LoanPeriodSummary,
-  LoanPeriodSummaryParams
+  LoanPeriodSummaryParams,
+  UpcomingInstallment,
+  UpcomingInstallmentsParams
 } from '../types';
 
 export const loanService = {
@@ -43,6 +45,17 @@ export const loanService = {
 
   getPeriodSummary: (params: LoanPeriodSummaryParams): Promise<LoanPeriodSummary> => {
     return api.get<LoanPeriodSummary>('/loans/period-summary', { params });
+  },
+
+  /**
+   * Row-level view of what is still owed over a date range, across all partners.
+   * Returned in the server's order (due_date, then loan_id, then
+   * installment_number) — callers render it as received.
+   */
+  getUpcomingInstallments: (
+    params: UpcomingInstallmentsParams
+  ): Promise<UpcomingInstallment[]> => {
+    return api.get<UpcomingInstallment[]>('/loans/upcoming-installments', { params });
   },
 
   createInstallmentPayment: (

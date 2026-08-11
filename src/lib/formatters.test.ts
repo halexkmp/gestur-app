@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { formatCurrency, toISODateLocal, periodPresetRange } from './formatters';
+import {
+  formatCurrency,
+  toISODateLocal,
+  periodPresetRange,
+  daysOverdue,
+} from './formatters';
 
 // Intl separates "R$" from the amount with a non-breaking space (U+00A0, or
 // U+202F in some ICU builds); normalise it so assertions read plainly.
@@ -90,5 +95,59 @@ describe('periodPresetRange', () => {
       startDate: '2026-08-08',
       endDate: '2026-09-06',
     });
+  });
+});
+
+describe('daysOverdue', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  const freezeAt = (date: Date) => {
+    vi.useFakeTimers();
+    vi.setSystemTime(date);
+  };
+
+  it('counts whole days for a past due date', () => {
+    freezeAt(new Date(2026, 7, 10, 9, 30, 0));
+    expect(daysOverdue('2026-08-03')).toBe(7);
+  });
+
+  it('returns 1 for yesterday', () => {
+    freezeAt(new Date(2026, 7, 10, 9, 30, 0));
+    expect(daysOverdue('2026-08-09')).toBe(1);
+  });
+
+  it('returns 0 for today — an installment due today is not overdue', () => {
+    freezeAt(new Date(2026, 7, 10, 9, 30, 0));
+    expect(daysOverdue('2026-08-10')).toBe(0);
+  });
+
+  it('returns 0 late in the day, not 1', () => {
+    // A midnight-anchored diff plus a timezone offset can tip this to 1.
+    freezeAt(new Date(2026, 7, 10, 23, 45, 0));
+    expect(daysOverdue('2026-08-10')).toBe(0);
+  });
+
+  it('never returns a negative count for a future date', () => {
+    freezeAt(new Date(2026, 7, 10, 9, 30, 0));
+    expect(daysOverdue('2026-09-15')).toBe(0);
+  });
+
+  it('counts whole days across a month boundary', () => {
+    freezeAt(new Date(2026, 8, 2, 9, 0, 0));
+    expect(daysOverdue('2026-08-30')).toBe(3);
+  });
+
+  it('counts whole days across a DST transition', () => {
+    // Brazil has no DST today, but the helper must not depend on that: a
+    // midnight anchor would yield 29 or 31 days across a shifting offset.
+    freezeAt(new Date(2026, 10, 15, 9, 0, 0));
+    expect(daysOverdue('2026-10-16')).toBe(30);
+  });
+
+  it('counts a full year of whole days', () => {
+    freezeAt(new Date(2026, 7, 10, 9, 0, 0));
+    expect(daysOverdue('2025-08-10')).toBe(365);
   });
 });

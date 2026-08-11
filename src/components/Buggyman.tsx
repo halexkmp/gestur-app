@@ -1,22 +1,25 @@
 import { useState } from 'react';
-import { Users, BarChart3 } from 'lucide-react';
+import { Users, BarChart3, CalendarClock } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import PartnersTab from './Buggyman/PartnersTab';
 import SummaryTab from './Buggyman/SummaryTab';
+import UpcomingTab from './Buggyman/UpcomingTab';
 
-type BuggymanTab = 'partners' | 'summary';
+type BuggymanTab = 'partners' | 'summary' | 'upcoming';
 
 export default function Buggyman() {
   const { isSuperAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState<BuggymanTab>('partners');
-  // The summary tab is mounted on first visit and then kept mounted (hidden
-  // when inactive), so its date range, sorting and search survive tab switches.
-  // Unmounting it would reset the range on every switch.
-  const [summaryVisited, setSummaryVisited] = useState(false);
+  // Tabs are mounted on first visit and then kept mounted (hidden when
+  // inactive), so their date range, filters, sorting and search survive tab
+  // switches. Unmounting would reset the range on every switch.
+  const [visited, setVisited] = useState<Set<BuggymanTab>>(new Set(['partners']));
 
-  const openSummary = () => {
-    setSummaryVisited(true);
-    setActiveTab('summary');
+  const openTab = (tab: BuggymanTab) => {
+    setVisited((previous) =>
+      previous.has(tab) ? previous : new Set(previous).add(tab)
+    );
+    setActiveTab(tab);
   };
 
   const tabClass = (tab: BuggymanTab) =>
@@ -34,14 +37,20 @@ export default function Buggyman() {
       </div>
 
       <div className="flex border-b border-gray-200">
-        <button onClick={() => setActiveTab('partners')} className={tabClass('partners')}>
+        <button onClick={() => openTab('partners')} className={tabClass('partners')}>
           <Users className="w-4 h-4" />
           Bugueiros
         </button>
         {isSuperAdmin && (
-          <button onClick={openSummary} className={tabClass('summary')}>
+          <button onClick={() => openTab('summary')} className={tabClass('summary')}>
             <BarChart3 className="w-4 h-4" />
             Resumo
+          </button>
+        )}
+        {isSuperAdmin && (
+          <button onClick={() => openTab('upcoming')} className={tabClass('upcoming')}>
+            <CalendarClock className="w-4 h-4" />
+            A receber
           </button>
         )}
       </div>
@@ -50,9 +59,15 @@ export default function Buggyman() {
         <PartnersTab />
       </div>
 
-      {isSuperAdmin && summaryVisited && (
+      {isSuperAdmin && visited.has('summary') && (
         <div className={activeTab === 'summary' ? undefined : 'hidden'}>
           <SummaryTab />
+        </div>
+      )}
+
+      {isSuperAdmin && visited.has('upcoming') && (
+        <div className={activeTab === 'upcoming' ? undefined : 'hidden'}>
+          <UpcomingTab />
         </div>
       )}
     </div>

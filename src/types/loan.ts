@@ -131,6 +131,46 @@ export interface LoanPeriodSummaryParams {
   end_date: string;
 }
 
+/**
+ * Status of an installment that is still owed. `GET /loans/upcoming-installments`
+ * guarantees it never returns a settled installment, so `PAID` is excluded here —
+ * derived from `InstallmentStatus` rather than redeclared so the two cannot drift.
+ * See specs/api/loans.md.
+ */
+export type UpcomingInstallmentStatus = Exclude<InstallmentStatus, 'PAID'>;
+
+/**
+ * One unsettled installment of one partner's loan, from
+ * GET /loans/upcoming-installments — a flat array with no envelope. Every monetary
+ * field is a decimal string with two decimals ("0.00", never "0"), and
+ * `is_overdue` is computed server-side against the server's current date,
+ * independently of the requested window — see specs/api/loans.md.
+ */
+export interface UpcomingInstallment {
+  installment_id: string;
+  loan_id: string;
+  partner_id: string;
+  partner_name: string;
+  installment_number: number;
+  due_date: string;
+  amount: string;
+  paid_amount: string;
+  remaining_amount: string;
+  status: UpcomingInstallmentStatus;
+  is_overdue: boolean;
+}
+
+export interface UpcomingInstallmentsParams {
+  start_date: string;
+  end_date: string;
+  /** Defaults to false server-side; sent explicitly in both states regardless. */
+  include_overdue?: boolean;
+  /** Supported by the endpoint, unused by the current UI. */
+  partner_id?: string;
+  /** Supported by the endpoint, unused by the current UI. */
+  limit?: number;
+}
+
 export type PeriodPresetId =
   | 'current-month'
   | 'previous-month'
