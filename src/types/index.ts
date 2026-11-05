@@ -8,3 +8,4 @@ export * from './employee';
 export * from './journey';
 export * from './loan';
 export * from './latenessConfig';
+export * from './tirolesa';

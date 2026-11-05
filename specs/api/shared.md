@@ -13,6 +13,10 @@ Content-Type: application/json
 All endpoints require authentication unless noted "Not required" on the endpoint itself.
 Exceptions: `POST /auth/login`, `GET /journey/selfie`.
 
+Devices use a separate scheme: `X-Device-Key: <key>` instead of a bearer token, on
+`POST /tirolesa/trips` and `POST /tirolesa/devices/heartbeat` only. A missing or unknown
+key, or an inactive device, returns 401.
+
 ---
 
 ## Permissions
@@ -22,6 +26,7 @@ role are marked `Requires: <ROLE>` in their context file. Roles in use today:
 
 - `Requires: ADMIN` — journey moderation (`GET /journey/admin`, `PATCH /journey/{id}`, `DELETE /journey/{id}`)
 - `Requires: HUMAN_RESOURCES` — all `/employees/*` endpoints
+- `Requires: ADMIN or MANAGER` — all `/tirolesa/*` endpoints except the two device endpoints
 
 `GET /users/` is a special case: it doesn't hard-block non-admins, but silently returns
 only the caller's own user instead of the full list unless the caller is `ADMIN`.
@@ -103,6 +108,18 @@ that endpoint documents.
 
 - MORNING
 - AFTERNOON
+
+## TirolesaJustificationType
+
+- TEST
+- COURTESY
+- OTHER
+
+## TirolesaAuditStatus
+
+- BALANCED
+- UNEXPLAINED
+- SOLD_ABOVE_DETECTED
 
 ---
 
