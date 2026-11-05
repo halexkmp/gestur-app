@@ -163,7 +163,7 @@ export default function SetupTab({ setup }: SetupTabProps) {
       </section>
 
       <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 space-y-4">
-        <h2 className="text-lg font-semibold text-gray-800">Produtos da tirolesa</h2>
+        <h2 className="text-lg font-semibold text-gray-800">Produtos Vinculados</h2>
         <form onSubmit={handleLinkProduct} className="grid gap-2 sm:grid-cols-[1fr_auto_auto] sm:items-end">
           <label className="text-sm text-gray-600">
             Produto

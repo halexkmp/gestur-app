@@ -190,7 +190,7 @@ warning "Esta chave não será mostrada novamente". It stays until dismissed, an
 is held only in component state, never in storage. There is no way to view a key later:
 to replace one, deactivate the device and create a new one.
 
-**Produtos da tirolesa:** list with product name and units per descent, each with a
+**Produtos Vinculados:** list with product name and units per descent, each with a
 remove button and confirmation. To link one, pick from active products not yet linked,
 using `productService`, and set "Unidades por descida" with a default of 1 and the hint
 "Use 1 para solo e tandem vendidos como uma descida".
