@@ -164,7 +164,7 @@ export default function SetupTab({ setup }: SetupTabProps) {
               step={1}
               value={unitsPerDescent}
               onChange={(event) => setUnitsPerDescent(Number(event.target.value))}
-              className="mt-1 w-full sm:w-28 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+              className="block mt-1 w-full sm:w-28 px-3 py-2 border border-gray-300 rounded-lg text-sm"
             />
           </label>
           <button
