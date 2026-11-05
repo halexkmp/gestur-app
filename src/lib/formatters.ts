@@ -128,3 +128,10 @@ export const localTimeStringWithUtcOffset = (time: string): string => {
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${time}${sign}${pad(Math.floor(abs / 60))}:${pad(abs % 60)}`;
 };
+
+/** Moves a "YYYY-MM-DD" date by whole days, working at noon to avoid timezone shifts. */
+export const shiftISODate = (date: string, days: number): string => {
+  const shifted = new Date(`${date}T12:00:00`);
+  shifted.setDate(shifted.getDate() + days);
+  return toISODateLocal(shifted);
+};
