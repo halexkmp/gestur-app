@@ -1,5 +1,5 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
-import { vi, describe, it, expect, beforeEach } from 'vitest';
+import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { useTirolesaAudit } from './useTirolesaAudit';
 import { tirolesaService } from '../services/tirolesaService';
 import { shiftISODate, toISODateLocal } from '../lib/formatters';
@@ -137,5 +137,85 @@ describe('useTirolesaAudit', () => {
 
     expect(tirolesaService.deleteJustification).toHaveBeenCalledWith('j1');
     expect(tirolesaService.getAuditDay).toHaveBeenCalledTimes(2);
+  });
+
+  it('a removal in flight cannot bring back the previous day', async () => {
+    const { result } = await mountOnYesterday();
+
+    let finishDelete: () => void = () => {};
+    vi.mocked(tirolesaService.deleteJustification).mockReturnValue(
+      new Promise<never>((resolve) => { finishDelete = resolve as () => void; }),
+    );
+    let removal: Promise<void> = Promise.resolve();
+    act(() => { removal = result.current.removeJustification('j1'); });
+
+    act(() => result.current.goToPreviousDay());
+    await waitFor(() => expect(result.current.day?.date).toBe(twoDaysAgo));
+
+    await act(async () => {
+      finishDelete();
+      await removal;
+    });
+
+    expect(result.current.selectedDate).toBe(twoDaysAgo);
+    expect(result.current.day?.date).toBe(twoDaysAgo);
+  });
+
+  describe('when the page stays open past midnight', () => {
+    const nextDay = shiftISODate(today, 1);
+
+    const moveClockToNextDay = () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date(`${nextDay}T09:00:00`));
+    };
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('a day that was today becomes a finished day on focus', async () => {
+      const { result } = await mountOnYesterday();
+      act(() => result.current.goToNextDay());
+      await waitFor(() => expect(result.current.day?.date).toBe(today));
+      vi.mocked(tirolesaService.getAuditDay).mockClear();
+
+      moveClockToNextDay();
+      await act(async () => { window.dispatchEvent(new Event('focus')); });
+
+      expect(result.current.selectedDate).toBe(today);
+      expect(result.current.isToday).toBe(false);
+      expect(result.current.isYesterday).toBe(true);
+      expect(tirolesaService.getAuditDay).toHaveBeenCalledWith(today);
+    });
+
+    it('the default view follows yesterday on focus', async () => {
+      const { result } = await mountOnYesterday();
+
+      moveClockToNextDay();
+      await act(async () => { window.dispatchEvent(new Event('focus')); });
+
+      await waitFor(() => expect(result.current.day?.date).toBe(today));
+      expect(result.current.selectedDate).toBe(today);
+    });
+
+    it('an older day the admin chose stays selected', async () => {
+      const { result } = await mountOnYesterday();
+      act(() => result.current.goToPreviousDay());
+      await waitFor(() => expect(result.current.day?.date).toBe(twoDaysAgo));
+
+      moveClockToNextDay();
+      await act(async () => { window.dispatchEvent(new Event('focus')); });
+
+      expect(result.current.selectedDate).toBe(twoDaysAgo);
+    });
+
+    it('yesterday always reloads, even on the same date', async () => {
+      const { result } = await mountOnYesterday();
+      vi.mocked(tirolesaService.getAuditDay).mockClear();
+
+      await act(async () => result.current.goToYesterday());
+
+      expect(tirolesaService.getAuditDay).toHaveBeenCalledWith(yesterday);
+    });
   });
 });

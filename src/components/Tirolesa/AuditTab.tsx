@@ -38,12 +38,12 @@ export default function AuditTab({ audit, setup, onOpenSetup }: AuditTabProps) {
   const [actionError, setActionError] = useState<string | null>(null);
 
   const { day } = audit;
-  const loadError = audit.error ?? (setup.loaded ? null : setup.error);
+  const loadError = audit.error ?? setup.error;
   const stillLoading = audit.loading || (!setup.loaded && setup.loading);
 
   const handleRetry = () => {
-    audit.reload();
-    if (!setup.loaded) setup.reload();
+    if (audit.error) audit.reload();
+    if (setup.error) setup.reload();
   };
 
   const handleRemove = async (justification: TirolesaJustification) => {

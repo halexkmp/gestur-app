@@ -3,11 +3,12 @@ import { tirolesaService } from '../services/tirolesaService';
 import { TirolesaAuditDay, TirolesaJustificationType } from '../types';
 import { shiftISODate, toISODateLocal } from '../lib/formatters';
 
+const DAY_CHECK_INTERVAL_MS = 60_000;
+
 const currentYesterday = (): string => shiftISODate(toISODateLocal(new Date()), -1);
 
 export const useTirolesaAudit = () => {
-  // Worked out on every render, so a page left open past midnight stays correct.
-  const today = toISODateLocal(new Date());
+  const [today, setToday] = useState<string>(() => toISODateLocal(new Date()));
   const yesterday = shiftISODate(today, -1);
 
   const [selectedDate, setSelectedDate] = useState<string>(currentYesterday);
@@ -19,6 +20,12 @@ export const useTirolesaAudit = () => {
   // not let a slow earlier day overwrite the one on screen.
   const requestIdRef = useRef<number>(0);
 
+  // Read through refs so a reload started by an action that finishes after the
+  // admin changed day fetches the day now on screen, not the day it began on.
+  const selectedDateRef = useRef<string>(selectedDate);
+  selectedDateRef.current = selectedDate;
+  const todayRef = useRef<string>(today);
+
   const reload = useCallback(async () => {
     const requestId = requestIdRef.current + 1;
     requestIdRef.current = requestId;
@@ -26,7 +33,7 @@ export const useTirolesaAudit = () => {
     setError(null);
 
     try {
-      const data = await tirolesaService.getAuditDay(selectedDate);
+      const data = await tirolesaService.getAuditDay(selectedDateRef.current);
       if (requestIdRef.current !== requestId) return;
       setDay(data);
     } catch (err) {
@@ -36,11 +43,38 @@ export const useTirolesaAudit = () => {
     } finally {
       if (requestIdRef.current === requestId) setLoading(false);
     }
-  }, [selectedDate]);
+  }, []);
 
   useEffect(() => {
     reload();
+  }, [reload, selectedDate]);
+
+  // A review tab is often left open overnight, and nothing else re-renders it.
+  const syncToday = useCallback(() => {
+    const previousToday = todayRef.current;
+    const now = toISODateLocal(new Date());
+    if (now === previousToday) return;
+
+    todayRef.current = now;
+    setToday(now);
+
+    if (selectedDateRef.current === shiftISODate(previousToday, -1)) {
+      setSelectedDate(shiftISODate(now, -1));
+    } else if (selectedDateRef.current === previousToday) {
+      reload();
+    }
   }, [reload]);
+
+  useEffect(() => {
+    window.addEventListener('focus', syncToday);
+    document.addEventListener('visibilitychange', syncToday);
+    const timer = window.setInterval(syncToday, DAY_CHECK_INTERVAL_MS);
+    return () => {
+      window.removeEventListener('focus', syncToday);
+      document.removeEventListener('visibilitychange', syncToday);
+      window.clearInterval(timer);
+    };
+  }, [syncToday]);
 
   const goToPreviousDay = useCallback(() => {
     setSelectedDate((current) => shiftISODate(current, -1));
@@ -54,8 +88,13 @@ export const useTirolesaAudit = () => {
   }, []);
 
   const goToYesterday = useCallback(() => {
-    setSelectedDate(currentYesterday());
-  }, []);
+    const target = currentYesterday();
+    if (target === selectedDateRef.current) {
+      reload();
+    } else {
+      setSelectedDate(target);
+    }
+  }, [reload]);
 
   const addJustification = useCallback(
     async (quantity: number, type: TirolesaJustificationType, reason: string) => {

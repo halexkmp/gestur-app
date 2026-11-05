@@ -1,4 +1,4 @@
-import { FormEvent, useState } from 'react';
+import { FormEvent, useRef, useState } from 'react';
 import { AlertCircle, Loader2, Plus, Trash2 } from 'lucide-react';
 import { useTirolesaSetup } from '../../hooks/useTirolesaSetup';
 import { TirolesaDevice } from '../../types';
@@ -25,6 +25,10 @@ export default function SetupTab({ setup }: SetupTabProps) {
   const [productId, setProductId] = useState('');
   const [unitsPerDescent, setUnitsPerDescent] = useState(1);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+  // A ref, because a double click fires twice before state updates. A second
+  // device must not replace a key that nobody has saved yet.
+  const creatingRef = useRef(false);
 
   const run = async (action: () => Promise<void>) => {
     setActionError(null);
@@ -38,11 +42,18 @@ export default function SetupTab({ setup }: SetupTabProps) {
   const handleCreateDevice = (event: FormEvent) => {
     event.preventDefault();
     const name = deviceName.trim();
-    if (!name) return;
+    if (!name || newKey || creatingRef.current) return;
+    creatingRef.current = true;
+    setCreating(true);
     run(async () => {
-      const device = await setup.createDevice(name);
-      setNewKey(device.api_key);
-      setDeviceName('');
+      try {
+        const device = await setup.createDevice(name);
+        setNewKey(device.api_key);
+        setDeviceName('');
+      } finally {
+        creatingRef.current = false;
+        setCreating(false);
+      }
     });
   };
 
@@ -95,6 +106,17 @@ export default function SetupTab({ setup }: SetupTabProps) {
         </div>
       )}
 
+      {setup.error && (
+        <div className="flex items-center justify-between gap-3 bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 text-sm">
+          <span className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0" /> {setup.error}
+          </span>
+          <button onClick={setup.reload} className="font-medium underline shrink-0">
+            Tentar novamente
+          </button>
+        </div>
+      )}
+
       {newKey && <DeviceKeyNotice apiKey={newKey} onDismiss={() => setNewKey(null)} />}
 
       <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 space-y-4">
@@ -108,7 +130,7 @@ export default function SetupTab({ setup }: SetupTabProps) {
           />
           <button
             type="submit"
-            disabled={!deviceName.trim()}
+            disabled={!deviceName.trim() || creating || newKey !== null}
             className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium disabled:opacity-50"
           >
             <Plus className="w-4 h-4" /> Novo dispositivo
