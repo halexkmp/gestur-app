@@ -10,7 +10,7 @@ import Business from './components/Business';
 import Reports from './components/Reports';
 import StockControl from './components/StockControl';
 import Users from './components/Users';
-import Audit from './components/Audit';
+import Tirolesa from './components/Tirolesa';
 import HR from './components/HR.tsx';
 import { EmployeeJourney } from './components/Journey/EmployeeJourney';
 
@@ -59,7 +59,7 @@ function AppContent() {
       case 'users':
         return <Users />;
       case 'audit':
-        return <Audit />;
+        return <Tirolesa />;
       case 'rh':
         return <HR />;
       case 'journey':
