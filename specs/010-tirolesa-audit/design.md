@@ -5,6 +5,14 @@ Status: approved by owner, 2026-11-05
 API design: `gestur-api/specs/009-tirolesa-audit/design.md`
 API contract: `gestur-api/specs/api/tirolesa.md`, PR #17
 
+## Change, 2026-11-06
+
+The audit now counts passengers, per the API design's change of the same date. Text
+below that says "descidas" for these figures is replaced: the verdict reads "N
+passageiros sem explicação", the cards read Detectados, Vendidos, Justificados, and the
+product setting is "Passageiros por unidade", with Solo 1 and Tandem 2. Suspect clock
+warnings still say "descidas", because they count trips.
+
 ## Intent
 
 The API compares tirolesa descents detected by a device with descents sold, so a ride

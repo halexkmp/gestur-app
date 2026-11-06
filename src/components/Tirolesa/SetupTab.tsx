@@ -23,7 +23,7 @@ export default function SetupTab({ setup }: SetupTabProps) {
   const [deviceName, setDeviceName] = useState('');
   const [newKey, setNewKey] = useState<string | null>(null);
   const [productId, setProductId] = useState('');
-  const [unitsPerDescent, setUnitsPerDescent] = useState(1);
+  const [passengersPerUnit, setPassengersPerUnit] = useState(1);
   const [actionError, setActionError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   // A ref, because a double click fires twice before state updates. A second
@@ -66,11 +66,11 @@ export default function SetupTab({ setup }: SetupTabProps) {
 
   const handleLinkProduct = (event: FormEvent) => {
     event.preventDefault();
-    if (!productId || !Number.isInteger(unitsPerDescent) || unitsPerDescent < 1) return;
+    if (!productId || !Number.isInteger(passengersPerUnit) || passengersPerUnit < 1) return;
     run(async () => {
-      await setup.linkProduct(productId, unitsPerDescent);
+      await setup.linkProduct(productId, passengersPerUnit);
       setProductId('');
-      setUnitsPerDescent(1);
+      setPassengersPerUnit(1);
     });
   };
 
@@ -179,13 +179,13 @@ export default function SetupTab({ setup }: SetupTabProps) {
             </select>
           </label>
           <label className="text-sm text-gray-600">
-            Unidades por descida
+            Passageiros por unidade
             <input
               type="number"
               min={1}
               step={1}
-              value={unitsPerDescent}
-              onChange={(event) => setUnitsPerDescent(Number(event.target.value))}
+              value={passengersPerUnit}
+              onChange={(event) => setPassengersPerUnit(Number(event.target.value))}
               className="block mt-1 w-full sm:w-28 px-3 py-2 border border-gray-300 rounded-lg text-sm"
             />
           </label>
@@ -197,7 +197,7 @@ export default function SetupTab({ setup }: SetupTabProps) {
             <Plus className="w-4 h-4" /> Vincular
           </button>
         </form>
-        <p className="text-xs text-gray-500">Use 1 para solo e tandem vendidos como uma descida.</p>
+        <p className="text-xs text-gray-500">Use 1 para solo ou venda por pessoa, e 2 para tandem.</p>
         {setup.links.length === 0 ? (
           <p className="text-sm text-gray-500">Nenhum produto vinculado.</p>
         ) : (
@@ -206,7 +206,7 @@ export default function SetupTab({ setup }: SetupTabProps) {
               <li key={link.id} className="flex items-center justify-between gap-2 py-3">
                 <div>
                   <p className="font-medium text-gray-800">{link.product_name}</p>
-                  <p className="text-xs text-gray-500">{link.units_per_descent} por descida</p>
+                  <p className="text-xs text-gray-500">{link.passengers_per_unit} por unidade</p>
                 </div>
                 <button
                   onClick={() => handleUnlinkProduct(link.id, link.product_name)}

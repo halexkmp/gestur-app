@@ -10,10 +10,10 @@ type Setup = ReturnType<typeof useTirolesaSetup>;
 
 const day: TirolesaAuditDay = {
   date: '2026-11-04',
-  descents_detected: 3,
-  descents_sold: 3,
-  descents_below_default_price: 0,
-  descents_justified: 0,
+  passengers_detected: 3,
+  passengers_sold: 3,
+  passengers_below_default_price: 0,
+  passengers_justified: 0,
   unexplained: 0,
   sold_above_detected: 0,
   sales_amount: 150,

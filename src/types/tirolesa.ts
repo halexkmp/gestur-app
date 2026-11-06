@@ -13,10 +13,10 @@ export interface TirolesaJustification {
 
 export interface TirolesaAuditDay {
   date: string;
-  descents_detected: number;
-  descents_sold: number;
-  descents_below_default_price: number;
-  descents_justified: number;
+  passengers_detected: number;
+  passengers_sold: number;
+  passengers_below_default_price: number;
+  passengers_justified: number;
   unexplained: number;
   sold_above_detected: number;
   sales_amount: number;
@@ -48,7 +48,7 @@ export interface TirolesaProduct {
   id: string;
   product_id: string;
   product_name: string;
-  units_per_descent: number;
+  passengers_per_unit: number;
 }
 
 export interface CreateJustificationRequest {

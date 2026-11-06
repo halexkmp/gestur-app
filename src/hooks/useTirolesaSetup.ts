@@ -58,8 +58,8 @@ export const useTirolesaSetup = () => {
   );
 
   const linkProduct = useCallback(
-    async (productId: string, unitsPerDescent: number) => {
-      await tirolesaService.linkProduct(productId, unitsPerDescent);
+    async (productId: string, passengersPerUnit: number) => {
+      await tirolesaService.linkProduct(productId, passengersPerUnit);
       await reload();
     },
     [reload],

@@ -13,10 +13,10 @@ const twoDaysAgo = shiftISODate(today, -2);
 
 const row = (date: string): TirolesaAuditDay => ({
   date,
-  descents_detected: 1,
-  descents_sold: 1,
-  descents_below_default_price: 0,
-  descents_justified: 0,
+  passengers_detected: 1,
+  passengers_sold: 1,
+  passengers_below_default_price: 0,
+  passengers_justified: 0,
   unexplained: 0,
   sold_above_detected: 0,
   sales_amount: 50,

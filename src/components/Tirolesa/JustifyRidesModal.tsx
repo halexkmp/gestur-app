@@ -34,7 +34,7 @@ export default function JustifyRidesModal({ date, onSave, onClose }: JustifyRide
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden">
         <div className="p-4 border-b bg-gray-50 flex justify-between items-center">
-          <h3 className="font-bold">Justificar descidas</h3>
+          <h3 className="font-bold">Justificar passageiros</h3>
           <button onClick={onClose} aria-label="Fechar" className="text-gray-400 hover:text-gray-600">
             <X className="w-5 h-5" />
           </button>
@@ -42,7 +42,7 @@ export default function JustifyRidesModal({ date, onSave, onClose }: JustifyRide
         <div className="p-4 space-y-4">
           <p className="text-sm text-gray-600">Dia {formatDateBR(date)}</p>
           <label className="block text-sm font-medium text-gray-700">
-            Quantidade
+            Passageiros
             <input
               type="number"
               min={1}

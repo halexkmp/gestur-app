@@ -17,6 +17,9 @@ Devices use a separate scheme: `X-Device-Key: <key>` instead of a bearer token, 
 `POST /tirolesa/trips` and `POST /tirolesa/devices/heartbeat` only. A missing or unknown
 key, or an inactive device, returns 401.
 
+`POST /tirolesa/devices/check-offline` is called by a Vercel schedule with
+`Authorization: Bearer <CRON_SECRET>`, not a user token.
+
 ---
 
 ## Permissions
@@ -26,7 +29,7 @@ role are marked `Requires: <ROLE>` in their context file. Roles in use today:
 
 - `Requires: ADMIN` — journey moderation (`GET /journey/admin`, `PATCH /journey/{id}`, `DELETE /journey/{id}`)
 - `Requires: HUMAN_RESOURCES` — all `/employees/*` endpoints
-- `Requires: ADMIN or MANAGER` — all `/tirolesa/*` endpoints except the two device endpoints
+- `Requires: ADMIN or MANAGER` — all `/tirolesa/*` endpoints except the two device endpoints and the offline check
 
 `GET /users/` is a special case: it doesn't hard-block non-admins, but silently returns
 only the caller's own user instead of the full list unless the caller is `ADMIN`.

@@ -25,7 +25,7 @@ export const tirolesaService = {
   updateDevice: (id: string, payload: { name?: string; active?: boolean }) =>
     api.put(`/tirolesa/devices/${id}`, payload),
   getProducts: () => api.get<TirolesaProduct[]>('/tirolesa/products'),
-  linkProduct: (productId: string, unitsPerDescent: number) =>
-    api.post('/tirolesa/products', { product_id: productId, units_per_descent: unitsPerDescent }),
+  linkProduct: (productId: string, passengersPerUnit: number) =>
+    api.post('/tirolesa/products', { product_id: productId, passengers_per_unit: passengersPerUnit }),
   unlinkProduct: (id: string) => api.delete(`/tirolesa/products/${id}`),
 };

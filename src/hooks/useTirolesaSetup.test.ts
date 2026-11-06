@@ -21,7 +21,7 @@ const link: TirolesaProduct = {
   id: 'l1',
   product_id: 'p1',
   product_name: 'Tirolesa Solo',
-  units_per_descent: 1,
+  passengers_per_unit: 1,
 };
 
 const product = (id: string, active = true): Product => ({

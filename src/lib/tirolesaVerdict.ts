@@ -20,10 +20,12 @@ export interface AuditVerdict {
   detail?: string;
 }
 
-const descents = (count: number): string => `${count} ${count === 1 ? 'descida' : 'descidas'}`;
+const passengers = (count: number): string => `${count} ${count === 1 ? 'passageiro' : 'passageiros'}`;
+
+const trips = (count: number): string => `${count} ${count === 1 ? 'descida' : 'descidas'}`;
 
 const suspectTrips = (count: number): string =>
-  `${descents(count)} com horário suspeito`;
+  `${trips(count)} com horário suspeito`;
 
 export const getAuditVerdict = (
   day: TirolesaAuditDay | null,
@@ -42,7 +44,7 @@ export const getAuditVerdict = (
       detail: 'O resultado final sai quando o dia terminar',
     };
   }
-  if (day.device_hours === 0 && day.descents_detected === 0) {
+  if (day.device_hours === 0 && day.passengers_detected === 0) {
     return {
       kind: 'unverifiable',
       tone: 'amber',
@@ -54,7 +56,7 @@ export const getAuditVerdict = (
     return {
       kind: 'unexplained',
       tone: 'red',
-      title: `${descents(day.unexplained)} sem explicação`,
+      title: `${passengers(day.unexplained)} sem explicação`,
       detail: `Valor estimado: ${formatCurrency(day.estimated_unpaid_value)}`,
     };
   }
@@ -63,10 +65,10 @@ export const getAuditVerdict = (
       kind: 'sold-above',
       tone: 'amber',
       title: 'Vendas acima do detectado',
-      detail: `${descents(day.sold_above_detected)}: verifique o sensor ou vendas sem descida`,
+      detail: `${passengers(day.sold_above_detected)}: verifique o sensor ou vendas sem descida`,
     };
   }
-  if (day.descents_detected === 0 && day.descents_sold === 0 && day.descents_justified === 0) {
+  if (day.passengers_detected === 0 && day.passengers_sold === 0 && day.passengers_justified === 0) {
     return { kind: 'no-activity', tone: 'grey', title: 'Sem movimento neste dia' };
   }
   if (day.clock_suspect_trips > 0) {

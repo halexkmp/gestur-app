@@ -64,14 +64,14 @@ export default function AuditTab({ audit, setup, onOpenSetup }: AuditTabProps) {
 
   const cards = day
     ? [
-        { label: 'Detectadas', value: day.descents_detected },
-        { label: 'Vendidas', value: day.descents_sold },
-        { label: 'Justificadas', value: day.descents_justified },
+        { label: 'Detectados', value: day.passengers_detected },
+        { label: 'Vendidos', value: day.passengers_sold },
+        { label: 'Justificados', value: day.passengers_justified },
         {
           label: 'Abaixo do preço',
-          value: day.descents_below_default_price,
+          value: day.passengers_below_default_price,
           hint: 'Vendas abaixo do preço padrão',
-          warn: day.descents_below_default_price > 0,
+          warn: day.passengers_below_default_price > 0,
         },
       ]
     : [];

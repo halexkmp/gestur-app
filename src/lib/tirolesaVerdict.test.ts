@@ -4,10 +4,10 @@ import { TirolesaAuditDay } from '../types';
 
 const day = (overrides: Partial<TirolesaAuditDay> = {}): TirolesaAuditDay => ({
   date: '2026-11-04',
-  descents_detected: 10,
-  descents_sold: 10,
-  descents_below_default_price: 0,
-  descents_justified: 0,
+  passengers_detected: 10,
+  passengers_sold: 10,
+  passengers_below_default_price: 0,
+  passengers_justified: 0,
   unexplained: 0,
   sold_above_detected: 0,
   sales_amount: 500,
@@ -56,8 +56,8 @@ describe('getAuditVerdict', () => {
     const verdict = getAuditVerdict(
       day({
         device_hours: 0,
-        descents_detected: 0,
-        descents_sold: 3,
+        passengers_detected: 0,
+        passengers_sold: 3,
         sold_above_detected: 3,
         status: 'SOLD_ABOVE_DETECTED',
       }),
@@ -78,13 +78,13 @@ describe('getAuditVerdict', () => {
     );
     expect(verdict?.kind).toBe('unexplained');
     expect(verdict?.tone).toBe('red');
-    expect(verdict?.title).toBe('2 descidas sem explicação');
+    expect(verdict?.title).toBe('2 passageiros sem explicação');
     expect(verdict?.detail).toMatch(/^Valor estimado: R\$\s100,00$/);
   });
 
-  it('uses the singular for one descent', () => {
+  it('uses the singular for one passenger', () => {
     const verdict = getAuditVerdict(day({ status: 'UNEXPLAINED', unexplained: 1 }), past);
-    expect(verdict?.title).toBe('1 descida sem explicação');
+    expect(verdict?.title).toBe('1 passageiro sem explicação');
   });
 
   it('sold above detected', () => {
@@ -96,13 +96,13 @@ describe('getAuditVerdict', () => {
       kind: 'sold-above',
       tone: 'amber',
       title: 'Vendas acima do detectado',
-      detail: '2 descidas: verifique o sensor ou vendas sem descida',
+      detail: '2 passageiros: verifique o sensor ou vendas sem descida',
     });
   });
 
   it('no activity', () => {
     const verdict = getAuditVerdict(
-      day({ descents_detected: 0, descents_sold: 0, descents_justified: 0 }),
+      day({ passengers_detected: 0, passengers_sold: 0, passengers_justified: 0 }),
       past,
     );
     expect(verdict).toMatchObject({
