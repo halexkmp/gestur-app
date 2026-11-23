@@ -146,3 +146,10 @@ export const latePenaltyPerDay = (
   if (!Number.isFinite(penaltyHours) || !Number.isFinite(salary)) return null;
   return (salary / monthlyWorkHours) * penaltyHours;
 };
+
+/** Moves a "YYYY-MM-DD" date by whole days, working at noon to avoid timezone shifts. */
+export const shiftISODate = (date: string, days: number): string => {
+  const shifted = new Date(`${date}T12:00:00`);
+  shifted.setDate(shifted.getDate() + days);
+  return toISODateLocal(shifted);
+};

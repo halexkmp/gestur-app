@@ -46,6 +46,7 @@ export default function Layout({ children, currentPage, onNavigate }: LayoutProp
 
     if (item.id === 'rh') return isSuperAdmin || isHR;
     if (item.id === 'users') return isSuperAdmin;
+    if (item.id === 'audit') return isSuperAdmin;
     if (item.id === 'journey') return isEmployee;
     return !item.adminOnly || isAdmin;
   });

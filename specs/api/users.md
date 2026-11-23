@@ -16,6 +16,9 @@ PUT /users/{user_id}
 
 DELETE /users/{user_id} → 204
 
+Returns 422 when the user created or deleted a tirolesa justification, so those audit
+records are kept. Set `active` to false instead.
+
 ---
 
 ## User

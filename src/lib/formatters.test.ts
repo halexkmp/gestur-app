@@ -5,6 +5,7 @@ import {
   periodPresetRange,
   daysOverdue,
   latePenaltyPerDay,
+  shiftISODate,
 } from './formatters';
 
 // Intl separates "R$" from the amount with a non-breaking space (U+00A0, or
@@ -164,5 +165,15 @@ describe('latePenaltyPerDay', () => {
   });
   it('returns null when penalty hours is not a finite number', () => {
     expect(latePenaltyPerDay(2200, 220, NaN)).toBeNull();
+  });
+});
+
+describe('shiftISODate', () => {
+  it('crosses a month boundary backwards', () => {
+    expect(shiftISODate('2026-11-01', -1)).toBe('2026-10-31');
+  });
+
+  it('crosses a year boundary forwards', () => {
+    expect(shiftISODate('2026-12-31', 1)).toBe('2027-01-01');
   });
 });
