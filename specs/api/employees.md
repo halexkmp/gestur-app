@@ -126,17 +126,20 @@ expected_entrance_time         # time, "HH:MM:SS"
 tolerance_minutes              # int >= 0 — grace period before a check-in counts as late
 deduction_interval_minutes     # int > 0 — minutes of delay per deducted block
 deduction_value                # decimal >= 0 — amount deducted per full block reached
+late_penalty_hours             # decimal, 0 <= x < 1000 — hours of pay lost per late day
+monthly_work_hours             # int > 0 — divisor for the hourly rate (salary / monthly_work_hours)
 ```
 
 GET /employees/lateness-config: returns the values above. If no configuration has ever
 been created, returns disabled/all-zero defaults (`enabled: false`, `expected_entrance_time:
-"00:00:00"`, all numeric fields `0`/`0.00`) rather than `404`.
+"00:00:00"`, all numeric fields `0`/`0.00` except `monthly_work_hours: 220`) rather than
+`404`.
 
 - Quirk: `expected_entrance_time` is stored as UTC and serializes with a trailing `Z`
   (e.g. `"08:00:00Z"`) once a real row exists, but as a bare `"00:00:00"` (no offset) in
   the no-row default case above. Treat both as UTC wall-clock time-of-day.
 
-PUT /employees/lateness-config: full replace — all five fields are required on every call
+PUT /employees/lateness-config: full replace — all seven fields are required on every call
 (no partial patch). Creates the singleton row if none exists yet, otherwise updates the
 existing one in place. Response: same shape as GET.
 
@@ -145,14 +148,19 @@ existing one in place. Response: same shape as GET.
   to true UTC before being stored, so `"08:00:00-03:00"` is stored/interpreted as
   `11:00:00` UTC, not as a bare `08:00` with the offset discarded.
 
-- `tolerance_minutes < 0`, `deduction_interval_minutes <= 0`, or `deduction_value < 0` →
-  `400 Bad Request`.
+- `tolerance_minutes < 0`, `deduction_interval_minutes <= 0`, `deduction_value < 0`,
+  `late_penalty_hours < 0` or `>= 1000`, or `monthly_work_hours <= 0` → `400 Bad Request`.
 
 Deduction formula for a day where the employee's earliest check-in is later than
 `expected_entrance_time` by more than `tolerance_minutes`:
 `floor(delay_minutes / deduction_interval_minutes) * deduction_value`, where `delay_minutes`
 is measured from `expected_entrance_time` (not reduced by the tolerance). When disabled,
 no deduction is applied and salary summaries report zero delay/deduction.
+
+Late penalty (in addition to the deduction above, gated by the same `enabled` flag): a flat
+penalty per late day (same "late day" definition), independent of how late the employee was:
+`salary / monthly_work_hours * late_penalty_hours` per late day. The monthly total is
+rounded half-up to 2 decimals. `late_penalty_hours: 0` disables only this penalty.
 
 ---
 
@@ -180,7 +188,8 @@ items: [
     late_delay_minutes     # total minutes late across days beyond tolerance this month
     late_days_count        # count of days beyond tolerance this month
     late_deduction_total   # total lateness deduction this month
-    net_salary              # gross_salary - advances_total - late_deduction_total
+    late_penalty_total     # total late penalty this month (salary / monthly_work_hours * late_penalty_hours * late days)
+    net_salary              # gross_salary - advances_total - late_deduction_total - late_penalty_total
   },
   ...
 ]
@@ -194,7 +203,8 @@ items: [
   `advance_date` in the requested month/year; `advances_total` always equals the sum of
   `advances[].amount`. An employee with no advances that month/year has `advances: []` and
   `advances_total: "0.00"`.
-- `late_delay_minutes`, `late_days_count`, and `late_deduction_total` are `0`/`0.00` when the
+- `late_delay_minutes`, `late_days_count`, `late_deduction_total`, and `late_penalty_total`
+  are `0`/`0.00` when the
   lateness configuration is disabled or has never been created, or when the employee has no
   linked user account; `net_salary` is then numerically identical to
   `gross_salary - advances_total`.
@@ -221,7 +231,8 @@ both endpoints.
 Self-service equivalent of `GET /employees/salary-summary`, scoped to the caller. Returns a
 single object with the same per-employee fields as one item of the bulk endpoint above
 (`employee_id`, `month`, `year`, `gross_salary`, `advances_total`, `late_delay_minutes`,
-`late_days_count`, `late_deduction_total`, `net_salary`) — not the `items` wrapper, and
+`late_days_count`, `late_deduction_total`, `late_penalty_total`, `net_salary`) — not the
+`items` wrapper, and
 without the itemized `advances` array (that field is specific to the HR-facing bulk report).
 `month`/`year` are optional and default to the current month, same as the HR-facing
 endpoint.

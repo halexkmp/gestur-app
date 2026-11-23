@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react';
 import { Save, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { useLatenessConfig } from '../hooks/useLatenessConfig';
 import { LatenessConfig } from '../types';
+import { formatCurrency, latePenaltyPerDay } from '../lib/formatters';
+
+const EXAMPLE_SALARY = 2200;
 
 const emptyForm: LatenessConfig = {
   enabled: false,
@@ -9,6 +12,8 @@ const emptyForm: LatenessConfig = {
   tolerance_minutes: 0,
   deduction_interval_minutes: 0,
   deduction_value: 0,
+  late_penalty_hours: 0,
+  monthly_work_hours: 220,
 };
 
 export default function LatenessConfigPanel() {
@@ -18,9 +23,11 @@ export default function LatenessConfigPanel() {
 
   useEffect(() => {
     if (config) {
-      setForm(config);
+      setForm({ ...emptyForm, ...config });
     }
   }, [config]);
+
+  const examplePerDay = latePenaltyPerDay(EXAMPLE_SALARY, form.monthly_work_hours, form.late_penalty_hours);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,7 +43,7 @@ export default function LatenessConfigPanel() {
       <div className="mb-4">
         <h2 className="text-lg font-semibold text-gray-800">Configuração de Atrasos</h2>
         <p className="text-sm text-gray-600 mt-1">
-          Defina o horário de entrada esperado, a tolerância e o desconto aplicado por atraso.
+          Defina o horário de entrada esperado, a tolerância, o desconto e a penalidade em horas aplicados por atraso.
         </p>
       </div>
 
@@ -109,6 +116,37 @@ export default function LatenessConfigPanel() {
             />
           </div>
         </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Penalidade por atraso (h)</label>
+            <input
+              type="number"
+              min={0}
+              max={999.99}
+              step="0.01"
+              value={form.late_penalty_hours}
+              onChange={(e) => setForm({ ...form, late_penalty_hours: Number(e.target.value) })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Horas mensais de trabalho</label>
+            <input
+              type="number"
+              min={1}
+              step={1}
+              value={form.monthly_work_hours}
+              onChange={(e) => setForm({ ...form, monthly_work_hours: Number(e.target.value) })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+        </div>
+
+        <p className="text-xs text-gray-500">
+          Ex.: salário {formatCurrency(EXAMPLE_SALARY)} ÷ {form.monthly_work_hours} h × {form.late_penalty_hours} h ={' '}
+          {examplePerDay === null ? '—' : formatCurrency(examplePerDay)} por dia de atraso
+        </p>
 
         <button
           type="submit"
