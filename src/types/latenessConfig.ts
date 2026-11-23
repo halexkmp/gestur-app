@@ -4,4 +4,6 @@ export interface LatenessConfig {
   tolerance_minutes: number;
   deduction_interval_minutes: number;
   deduction_value: number;
+  late_penalty_hours: number; // hours of pay lost per late day, 0 <= x < 1000
+  monthly_work_hours: number; // divisor for the hourly rate (salary / monthly_work_hours), > 0
 }

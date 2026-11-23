@@ -3,6 +3,16 @@ import { latenessConfigService } from '../services/latenessConfigService';
 import { localTimeStringWithUtcOffset, utcTimeStringToLocal } from '../lib/formatters';
 import { LatenessConfig } from '../types';
 
+// The API serializes Decimal fields as strings ("2.00"); coerce the ones used in arithmetic
+// so the app state matches the LatenessConfig number type. Also converts the UTC wire time
+// to local wall-clock time.
+const fromApi = (data: LatenessConfig): LatenessConfig => ({
+  ...data,
+  expected_entrance_time: utcTimeStringToLocal(data.expected_entrance_time),
+  late_penalty_hours: Number(data.late_penalty_hours),
+  monthly_work_hours: Number(data.monthly_work_hours),
+});
+
 export const useLatenessConfig = () => {
   const [config, setConfig] = useState<LatenessConfig | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
@@ -13,7 +23,7 @@ export const useLatenessConfig = () => {
     setError(null);
     try {
       const data = await latenessConfigService.get();
-      setConfig({ ...data, expected_entrance_time: utcTimeStringToLocal(data.expected_entrance_time) });
+      setConfig(fromApi(data));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch lateness configuration');
     } finally {
@@ -56,7 +66,7 @@ export const useLatenessConfig = () => {
         expected_entrance_time: localTimeStringWithUtcOffset(values.expected_entrance_time),
       };
       const updated = await latenessConfigService.update(payload);
-      setConfig({ ...updated, expected_entrance_time: utcTimeStringToLocal(updated.expected_entrance_time) });
+      setConfig(fromApi(updated));
       return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save lateness configuration');

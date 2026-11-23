@@ -129,6 +129,24 @@ export const localTimeStringWithUtcOffset = (time: string): string => {
   return `${time}${sign}${pad(Math.floor(abs / 60))}:${pad(abs % 60)}`;
 };
 
+/**
+ * Cost of one late day under the hours-based late penalty:
+ * salary / monthlyWorkHours × penaltyHours.
+ *
+ * Illustrative only (used for the example line in the lateness settings) — the API
+ * computes the real, rounded `late_penalty_total`. Returns null when the inputs
+ * cannot produce a meaningful amount (e.g. monthly hours cleared or 0).
+ */
+export const latePenaltyPerDay = (
+  salary: number,
+  monthlyWorkHours: number,
+  penaltyHours: number
+): number | null => {
+  if (!Number.isFinite(monthlyWorkHours) || monthlyWorkHours <= 0) return null;
+  if (!Number.isFinite(penaltyHours) || !Number.isFinite(salary)) return null;
+  return (salary / monthlyWorkHours) * penaltyHours;
+};
+
 /** Moves a "YYYY-MM-DD" date by whole days, working at noon to avoid timezone shifts. */
 export const shiftISODate = (date: string, days: number): string => {
   const shifted = new Date(`${date}T12:00:00`);

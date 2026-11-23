@@ -1,4 +1,4 @@
-import { AlertCircle, Banknote, CalendarClock, Clock3, DollarSign, TrendingDown } from 'lucide-react';
+import { AlertCircle, Banknote, CalendarClock, Clock3, DollarSign, Hourglass, TrendingDown } from 'lucide-react';
 import { useEmployeeSalarySummary } from '../../hooks/useEmployeeSalarySummary';
 
 const monthOptions = Array.from({ length: 12 }, (_, i) => i + 1);
@@ -90,7 +90,17 @@ export const EmployeeSalarySummary: React.FC = () => {
             </div>
           </div>
 
-          <div className="p-4 rounded-xl bg-green-50 border border-green-100 flex items-center gap-4 sm:col-span-2 lg:col-span-1">
+          <div className="p-4 rounded-xl bg-red-50 border border-red-100 flex items-center gap-4">
+            <div className="p-2 bg-red-100 rounded-lg shrink-0">
+              <Hourglass className="w-5 h-5 text-red-600" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-xs font-medium text-red-500 uppercase">Penalidade por Atraso</div>
+              <div className="text-lg font-bold text-red-700">R$ {Number(summary.late_penalty_total ?? 0).toFixed(2)}</div>
+            </div>
+          </div>
+
+          <div className="p-4 rounded-xl bg-green-50 border border-green-100 flex items-center gap-4">
             <div className="p-2 bg-green-100 rounded-lg shrink-0">
               <CalendarClock className="w-5 h-5 text-green-600" />
             </div>

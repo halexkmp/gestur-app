@@ -34,6 +34,9 @@ export default function EmployeePaycheckRow({
         <td className="px-4 py-3 text-sm text-red-700 whitespace-nowrap">
           {summaryLoaded ? `R$ ${Number(paycheck.late_deduction_total).toFixed(2)}` : '—'}
         </td>
+        <td className="px-4 py-3 text-sm text-red-700 whitespace-nowrap">
+          {summaryLoaded ? `R$ ${Number(paycheck.late_penalty_total ?? 0).toFixed(2)}` : '—'}
+        </td>
         <td className="px-4 py-3 text-sm font-bold text-green-700 whitespace-nowrap">
           {summaryLoaded ? `R$ ${Number(paycheck.net_salary).toFixed(2)}` : '—'}
         </td>
@@ -49,13 +52,14 @@ export default function EmployeePaycheckRow({
       </tr>
       {expanded && (
         <tr>
-          <td colSpan={6} className="px-4 pb-4">
+          <td colSpan={7} className="px-4 pb-4">
             {summaryLoaded ? (
               <EmployeePaycheckDetail
                 advances={advances}
                 lateDelayMinutes={paycheck.late_delay_minutes ?? 0}
                 lateDaysCount={paycheck.late_days_count ?? 0}
                 lateDeductionTotal={paycheck.late_deduction_total ?? 0}
+                latePenaltyTotal={paycheck.late_penalty_total ?? 0}
                 onDeleteAdvance={onDeleteAdvance}
                 onViewHistory={onViewHistory}
               />

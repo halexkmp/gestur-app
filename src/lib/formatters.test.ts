@@ -4,6 +4,7 @@ import {
   toISODateLocal,
   periodPresetRange,
   daysOverdue,
+  latePenaltyPerDay,
   shiftISODate,
 } from './formatters';
 
@@ -150,6 +151,20 @@ describe('daysOverdue', () => {
   it('counts a full year of whole days', () => {
     freezeAt(new Date(2026, 7, 10, 9, 0, 0));
     expect(daysOverdue('2025-08-10')).toBe(365);
+  });
+});
+
+describe('latePenaltyPerDay', () => {
+  it('returns salary / monthly hours × penalty hours', () => {
+    expect(latePenaltyPerDay(2200, 220, 2)).toBe(20);
+    expect(latePenaltyPerDay(1518, 220, 1.5)).toBeCloseTo(10.35, 10);
+  });
+  it('returns null when monthly hours is not a positive number', () => {
+    expect(latePenaltyPerDay(2200, 0, 2)).toBeNull();
+    expect(latePenaltyPerDay(2200, NaN, 2)).toBeNull();
+  });
+  it('returns null when penalty hours is not a finite number', () => {
+    expect(latePenaltyPerDay(2200, 220, NaN)).toBeNull();
   });
 });
 

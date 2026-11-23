@@ -23,6 +23,7 @@ const overviewItem = (overrides: Partial<SalarySummaryOverviewItem>): SalarySumm
   late_delay_minutes: 0,
   late_days_count: 0,
   late_deduction_total: 0,
+  late_penalty_total: 0,
   net_salary: 1000,
   advances: [],
   ...overrides,
@@ -52,6 +53,16 @@ describe('useEmployeePaychecks', () => {
       { employee_name: 'Alice', base_salary: 1000, ...summary },
     ]);
     expect(result.current.error).toBe(false);
+  });
+
+  it('should carry late_penalty_total from the overview into the paycheck', async () => {
+    vi.mocked(employeeService.getAll).mockResolvedValue([employee({})]);
+    vi.mocked(employeeService.getSalarySummaryOverview).mockResolvedValue(
+      overviewResponse([overviewItem({ late_penalty_total: '20.00' })])
+    );
+    const { result } = renderHook(() => useEmployeePaychecks());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.paychecks[0].late_penalty_total).toBe('20.00');
   });
 
   it('should fall back to base_salary only when the overview has no matching item for an active employee', async () => {
