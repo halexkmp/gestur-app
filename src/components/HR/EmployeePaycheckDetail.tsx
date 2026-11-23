@@ -6,6 +6,7 @@ interface EmployeePaycheckDetailProps {
   lateDelayMinutes: number;
   lateDaysCount: number;
   lateDeductionTotal: number | string;
+  latePenaltyTotal: number | string;
   onDeleteAdvance: (advance: SalarySummaryOverviewAdvance) => void;
   onViewHistory: () => void;
 }
@@ -15,10 +16,11 @@ export default function EmployeePaycheckDetail({
   lateDelayMinutes,
   lateDaysCount,
   lateDeductionTotal,
+  latePenaltyTotal,
   onDeleteAdvance,
   onViewHistory,
 }: EmployeePaycheckDetailProps) {
-  const hasLateness = lateDaysCount > 0 || lateDelayMinutes > 0 || Number(lateDeductionTotal) > 0;
+  const hasLateness = lateDaysCount > 0 || lateDelayMinutes > 0 || Number(lateDeductionTotal) > 0 || Number(latePenaltyTotal) > 0;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg border border-gray-100">
@@ -68,6 +70,7 @@ export default function EmployeePaycheckDetail({
             <div className="min-w-0">
               <div className="text-sm font-semibold text-gray-800">{lateDaysCount} dia(s) · {lateDelayMinutes} min</div>
               <div className="text-xs text-red-600">Desconto: R$ {Number(lateDeductionTotal).toFixed(2)}</div>
+              <div className="text-xs text-red-600">Penalidade: R$ {Number(latePenaltyTotal).toFixed(2)}</div>
             </div>
           </div>
         ) : (

@@ -130,6 +130,7 @@ export default function SalaryTab() {
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Salário Bruto</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Desc. Adiantamentos</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Desc. Atraso</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Penalidade Atraso</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Salário Líquido</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Detalhes</th>
               </tr>
@@ -137,11 +138,11 @@ export default function SalaryTab() {
             <tbody className="divide-y divide-gray-200">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-10 text-center text-gray-500">Carregando...</td>
+                  <td colSpan={7} className="px-4 py-10 text-center text-gray-500">Carregando...</td>
                 </tr>
               ) : error ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-10 text-center text-gray-500">
+                  <td colSpan={7} className="px-4 py-10 text-center text-gray-500">
                     <div className="flex flex-col items-center gap-2">
                       <AlertCircle className="w-6 h-6 text-red-500" />
                       <span>Não foi possível carregar os pagamentos.</span>
@@ -156,7 +157,7 @@ export default function SalaryTab() {
                 </tr>
               ) : visiblePaychecks.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-10 text-center text-gray-500">
+                  <td colSpan={7} className="px-4 py-10 text-center text-gray-500">
                     {paychecks.length === 0 ? 'Nenhum funcionário ativo cadastrado' : 'Nenhum funcionário encontrado'}
                   </td>
                 </tr>

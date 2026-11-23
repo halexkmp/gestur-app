@@ -41,6 +41,7 @@ export const useEmployeePaychecks = () => {
             late_delay_minutes: summary.late_delay_minutes,
             late_days_count: summary.late_days_count,
             late_deduction_total: summary.late_deduction_total,
+            late_penalty_total: summary.late_penalty_total,
             net_salary: summary.net_salary,
             advances: summary.advances,
           } : {}),

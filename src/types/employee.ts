@@ -54,6 +54,7 @@ export interface SalarySummaryResponse {
   late_delay_minutes: number;
   late_days_count: number;
   late_deduction_total: number | string;
+  late_penalty_total: number | string;
   net_salary: number | string;
 }
 
@@ -76,6 +77,7 @@ export interface SalarySummaryOverviewItem {
   late_delay_minutes: number;
   late_days_count: number;
   late_deduction_total: number | string;
+  late_penalty_total: number | string;
   net_salary: number | string;
   advances: SalarySummaryOverviewAdvance[];
 }
@@ -98,6 +100,7 @@ export interface EmployeePaycheck {
   late_delay_minutes?: number;
   late_days_count?: number;
   late_deduction_total?: number | string;
+  late_penalty_total?: number | string;
   net_salary?: number | string;
   advances?: SalarySummaryOverviewAdvance[];
 }
